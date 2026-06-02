@@ -451,11 +451,9 @@ namespace Unity.WebRTC
 
             if (self != IntPtr.Zero)
             {
-                IntPtr trackPtr = track.GetSelfOrThrow();
-                if (trackPtr != IntPtr.Zero)
-                {
-                    NativeMethods.VideoTrackRemoveSink(trackPtr, self);
-                }
+                // 7DTD hosts this package as a mod assembly, outside the usual Unity package lifecycle.
+                // Calling VideoTrackRemoveSink from dispose/finalizer has been observed to crash the
+                // Unity graphics worker in the native plugin. Let native peer teardown own the sink.
                 WebRTC.DestroyOnMainThread(Texture);
                 TexturePtr = IntPtr.Zero;
                 WebRTC.Context.DeleteVideoRenderer(self);

@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using System;
 using System.IO;
 using System.Net;
@@ -18,11 +19,18 @@ public class BrowserTvWebRtcViewer : MonoBehaviour
     private Coroutine connectLoop;
     private Coroutine updateLoop;
     private int remoteIceIndex;
+    private readonly List<MediaStreamTrack> receivedTracks = new List<MediaStreamTrack>();
 
     public void StartViewing(BrowserTvState nextState, BrowserTvScreenController screenController)
     {
-        if (state != null && state.SessionId == nextState.SessionId && state.Revision == nextState.Revision)
+        if (state != null && state.SessionId == nextState.SessionId)
         {
+            state = nextState.Clone();
+            controller = screenController;
+            if (controller != null)
+            {
+                controller.SetVolume(state.Volume);
+            }
             return;
         }
 
@@ -60,6 +68,8 @@ public class BrowserTvWebRtcViewer : MonoBehaviour
             peer.Dispose();
             peer = null;
         }
+
+        receivedTracks.Clear();
     }
 
     private IEnumerator Connect()
@@ -135,6 +145,11 @@ public class BrowserTvWebRtcViewer : MonoBehaviour
         };
         peer.OnTrack = e =>
         {
+            if (e.Track != null && !receivedTracks.Contains(e.Track))
+            {
+                receivedTracks.Add(e.Track);
+            }
+
             if (e.Track is VideoStreamTrack videoTrack)
             {
                 videoTrack.OnVideoReceived += texture => controller.SetExternalTexture(texture);
@@ -161,6 +176,7 @@ public class BrowserTvWebRtcViewer : MonoBehaviour
             Debug.LogError("[BrowserTV] SetRemoteDescription failed: " + setRemote.Error.message);
             yield break;
         }
+        Debug.Log("[BrowserTV] WebRTC remote description set.");
 
         var answerOp = peer.CreateAnswer();
         yield return answerOp;
@@ -169,6 +185,7 @@ public class BrowserTvWebRtcViewer : MonoBehaviour
             Debug.LogError("[BrowserTV] CreateAnswer failed: " + answerOp.Error.message);
             yield break;
         }
+        Debug.Log("[BrowserTV] WebRTC answer created.");
 
         RTCSessionDescription answer = answerOp.Desc;
         answer.sdp = Regex.Replace(answer.sdp ?? "", "(stereo=1;)?useinbandfec=1", "useinbandfec=1;stereo=1");
@@ -179,6 +196,7 @@ public class BrowserTvWebRtcViewer : MonoBehaviour
             Debug.LogError("[BrowserTV] SetLocalDescription failed: " + setLocal.Error.message);
             yield break;
         }
+        Debug.Log("[BrowserTV] WebRTC local description set.");
 
         BackgroundTask<object> answerTask = RunBackground<object>(() =>
         {
