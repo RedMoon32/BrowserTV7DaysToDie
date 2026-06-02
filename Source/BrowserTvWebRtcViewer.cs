@@ -10,7 +10,7 @@ public class BrowserTvWebRtcViewer : MonoBehaviour
     private const int Height = 720;
     private const int BytesPerPixel = 4;
     private const uint Pitch = Width * BytesPerPixel;
-    private const int BrightnessPercent = 60;
+    private const int BrightnessPercent = 50;
     private static readonly bool FlipVertical = true;
     private static readonly bool FlipHorizontal = false;
 

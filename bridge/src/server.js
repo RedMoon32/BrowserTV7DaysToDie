@@ -2,7 +2,7 @@ import http from "node:http";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 
 const PORT = Number(process.env.PORT || 8787);
 const SERVER_SECRET = process.env.BROWSER_TV_SERVER_SECRET || "change-me-browser-tv-secret";
@@ -28,8 +28,8 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, {
         ok: true,
         active: Boolean(activeSession),
-        mediaRoot: MEDIA_ROOT,
-        media: "mpegts",
+    mediaRoot: MEDIA_ROOT,
+        media: "mpegts-av",
       });
     }
 
@@ -106,9 +106,12 @@ function createSession(tvId, currentUrl) {
     controllerToken: token("ctrl"),
     display: `:${DISPLAY_BASE + sessions.size + 1}`,
     dir: path.join(MEDIA_ROOT, sessionId),
+    pulseRuntime: path.join(MEDIA_ROOT, sessionId, "pulse-runtime"),
+    pulseSink: `browsertv_${sessionId.replace(/[^A-Za-z0-9_]/g, "_")}`,
     streamUrl: `${PUBLIC_URL}/media/${sessionId}/stream.ts?token=${encodeURIComponent(viewerToken)}`,
     processes: [],
     chromium: null,
+    pulse: null,
   };
 }
 
@@ -124,9 +127,28 @@ async function startMedia(session) {
   session.processes.push(xvfb);
   await delay(700);
 
+  await startPulseAudio(session);
   restartChromium(session);
 
   await delay(700);
+}
+
+async function startPulseAudio(session) {
+  fs.mkdirSync(session.pulseRuntime, { recursive: true, mode: 0o700 });
+  const pulseEnv = makePulseEnv(session);
+  const pulse = spawnLogged(session, "pulseaudio", [
+    "--daemonize=no",
+    "--exit-idle-time=-1",
+    "--log-target=stderr",
+    "--disallow-exit",
+  ], pulseEnv);
+  session.pulse = pulse;
+  session.processes.push(pulse);
+
+  await delay(900);
+  runPactl(session, ["load-module", "module-null-sink", `sink_name=${session.pulseSink}`, `sink_properties=device.description=${session.pulseSink}`]);
+  runPactl(session, ["set-default-sink", session.pulseSink]);
+  console.log(JSON.stringify({ event: "pulse_ready", sessionId: session.sessionId, sink: session.pulseSink }));
 }
 
 function restartChromium(session) {
@@ -142,12 +164,13 @@ function restartChromium(session) {
     "--disable-gpu",
     "--disable-software-rasterizer",
     "--disable-background-networking",
+    "--autoplay-policy=no-user-gesture-required",
     "--window-position=0,0",
     `--window-size=${WIDTH},${HEIGHT}`,
     "--start-fullscreen",
     "--kiosk",
     session.currentUrl,
-  ], { DISPLAY: session.display });
+  ], { ...makePulseEnv(session), DISPLAY: session.display, PULSE_SINK: session.pulseSink });
 
   session.chromium = chromium;
   session.processes.push(chromium);
@@ -220,12 +243,17 @@ function serveTransportStream(req, res, session) {
   const ffmpeg = spawn("ffmpeg", [
     "-hide_banner",
     "-loglevel", "warning",
+    "-thread_queue_size", "512",
     "-f", "x11grab",
     "-draw_mouse", "1",
     "-video_size", `${WIDTH}x${HEIGHT}`,
     "-framerate", String(FPS),
     "-i", `${session.display}.0`,
-    "-an",
+    "-thread_queue_size", "512",
+    "-f", "pulse",
+    "-i", `${session.pulseSink}.monitor`,
+    "-map", "0:v:0",
+    "-map", "1:a:0",
     "-c:v", "libx264",
     "-preset", "veryfast",
     "-tune", "zerolatency",
@@ -233,10 +261,14 @@ function serveTransportStream(req, res, session) {
     "-g", String(FPS),
     "-keyint_min", String(FPS),
     "-sc_threshold", "0",
+    "-c:a", "aac",
+    "-b:a", "128k",
+    "-ar", "48000",
+    "-ac", "2",
     "-f", "mpegts",
     "pipe:1",
   ], {
-    env: process.env,
+    env: makePulseEnv(session),
     stdio: ["ignore", "pipe", "pipe"],
   });
 
@@ -274,6 +306,28 @@ function killProcess(child) {
   try {
     if (!child.killed) child.kill("SIGTERM");
   } catch {}
+}
+
+function makePulseEnv(session) {
+  return {
+    ...process.env,
+    XDG_RUNTIME_DIR: session.pulseRuntime,
+    PULSE_RUNTIME_PATH: path.join(session.pulseRuntime, "pulse"),
+    PULSE_SERVER: `unix:${path.join(session.pulseRuntime, "pulse", "native")}`,
+  };
+}
+
+function runPactl(session, args) {
+  const result = spawnSync("pactl", args, {
+    env: makePulseEnv(session),
+    encoding: "utf8",
+  });
+  if (result.status !== 0) {
+    throw new Error(`pactl ${args.join(" ")} failed: ${result.stderr || result.stdout}`);
+  }
+  if (result.stdout?.trim()) {
+    logProcess(session, "pactl", result.stdout);
+  }
 }
 
 function authorizeServer(req) {
