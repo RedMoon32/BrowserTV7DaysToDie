@@ -44,6 +44,10 @@
         "net48": {
           "targetAlias": "net48",
           "dependencies": {
+            "LibVLCSharp": {
+              "target": "Package",
+              "version": "[3.9.4, )"
+            },
             "Microsoft.NETFramework.ReferenceAssemblies": {
               "suppressParent": "All",
               "target": "Package",
@@ -54,6 +58,10 @@
               "suppressParent": "All",
               "target": "Package",
               "version": "[1.0.3, )"
+            },
+            "VideoLAN.LibVLC.Windows": {
+              "target": "Package",
+              "version": "[3.0.21, )"
             }
           },
           "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.100-preview.5.25277.114\\RuntimeIdentifierGraph.json"

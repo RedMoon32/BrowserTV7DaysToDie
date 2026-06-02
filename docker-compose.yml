@@ -8,7 +8,7 @@ services:
     environment:
       PORT: "8787"
       BROWSER_TV_SERVER_SECRET: "change-me-browser-tv-secret"
-      BROWSER_TV_PUBLIC_URL: "http://127.0.0.1:8787"
+      BROWSER_TV_PUBLIC_URL: "http://192.168.4.94:8787"
       BROWSER_TV_DEFAULT_URL: "https://www.google.com"
       BROWSER_TV_WIDTH: "1280"
       BROWSER_TV_HEIGHT: "720"
