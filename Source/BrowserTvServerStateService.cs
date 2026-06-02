@@ -1,4 +1,5 @@
 using System;
+using System.Net;
 using System.Threading;
 using UnityEngine;
 
@@ -160,6 +161,8 @@ public static class BrowserTvServerStateService
 
     private static void Navigate(Vector3i blockPos, string url)
     {
+        int requestRevision;
+        string sessionId;
         lock (Sync)
         {
             if (state.Power != BrowserTvPowerState.On || !state.IsSameTv(blockPos))
@@ -170,20 +173,122 @@ public static class BrowserTvServerStateService
             state.CurrentUrl = url;
             state.StatusText = "Navigating";
             state.Revision++;
+            requestRevision = ++operationRevision;
+            sessionId = state.SessionId;
             BroadcastStateLocked();
-            string sessionId = state.SessionId;
-            ThreadPool.QueueUserWorkItem(_ =>
+        }
+
+        ThreadPool.QueueUserWorkItem(_ =>
+        {
+            try
             {
-                try
+                if (string.IsNullOrEmpty(sessionId))
                 {
-                    bridgeClient.Navigate(sessionId, url);
+                    throw new WebException("Bridge session is missing");
                 }
-                catch (Exception ex)
+
+                bridgeClient.Navigate(sessionId, url);
+                BrowserTvManager.RunOnMainThread(() =>
                 {
-                    BrowserTvManager.RunOnMainThread(() => Debug.LogWarning("[BrowserTV] Bridge navigate failed: " + ex.Message));
+                    lock (Sync)
+                    {
+                        if (requestRevision != operationRevision || !state.IsSameTv(blockPos) || state.Power != BrowserTvPowerState.On || state.CurrentUrl != url)
+                        {
+                            return;
+                        }
+
+                        state.StatusText = "On";
+                        state.Revision++;
+                        BroadcastStateLocked();
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                if (IsBridgeSessionMissing(ex))
+                {
+                    RestartSessionAfterLostBridgeSession(requestRevision, blockPos, url);
+                    return;
+                }
+
+                BrowserTvManager.RunOnMainThread(() =>
+                {
+                    lock (Sync)
+                    {
+                        if (requestRevision != operationRevision || !state.IsSameTv(blockPos) || state.Power != BrowserTvPowerState.On || state.CurrentUrl != url)
+                        {
+                            return;
+                        }
+
+                        state.StatusText = "Navigate failed: " + ex.Message;
+                        state.Revision++;
+                        BroadcastStateLocked();
+                    }
+
+                    Debug.LogWarning("[BrowserTV] Bridge navigate failed: " + ex.Message);
+                });
+            }
+        });
+    }
+
+    private static void RestartSessionAfterLostBridgeSession(int requestRevision, Vector3i blockPos, string url)
+    {
+        try
+        {
+            Debug.LogWarning("[BrowserTV] Bridge session is missing; starting a replacement session for " + blockPos);
+            BrowserTvBridgeStartResult result = bridgeClient.StartSession(blockPos, url);
+            BrowserTvManager.RunOnMainThread(() =>
+            {
+                lock (Sync)
+                {
+                    if (requestRevision != operationRevision || !state.IsSameTv(blockPos) || state.Power != BrowserTvPowerState.On || state.CurrentUrl != url)
+                    {
+                        return;
+                    }
+
+                    state.SessionId = result.SessionId;
+                    state.StreamUrl = result.StreamUrl;
+                    state.ViewerToken = result.ViewerToken;
+                    state.ControllerToken = result.ControllerToken;
+                    state.StatusText = string.IsNullOrEmpty(result.StatusText) ? "On" : result.StatusText;
+                    state.Revision++;
+                    BroadcastStateLocked();
                 }
             });
         }
+        catch (Exception restartEx)
+        {
+            BrowserTvManager.RunOnMainThread(() =>
+            {
+                lock (Sync)
+                {
+                    if (requestRevision != operationRevision || !state.IsSameTv(blockPos) || state.Power != BrowserTvPowerState.On || state.CurrentUrl != url)
+                    {
+                        return;
+                    }
+
+                    state.Power = BrowserTvPowerState.Error;
+                    state.StatusText = "Bridge unavailable: " + restartEx.Message;
+                    state.Revision++;
+                    BroadcastStateLocked();
+                }
+            });
+        }
+    }
+
+    private static bool IsBridgeSessionMissing(Exception ex)
+    {
+        if (ex.Message.IndexOf("Bridge session is missing", StringComparison.OrdinalIgnoreCase) >= 0)
+        {
+            return true;
+        }
+
+        if (ex is WebException webException && webException.Response is HttpWebResponse response)
+        {
+            return response.StatusCode == HttpStatusCode.NotFound;
+        }
+
+        return false;
     }
 
     private static void SetVolume(Vector3i blockPos, float volume)
