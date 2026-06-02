@@ -43,7 +43,8 @@ public class BrowserTvWebRtcViewer : MonoBehaviour
 
         if (state != null &&
             state.SessionId == nextState.SessionId &&
-            state.StreamUrl == nextState.StreamUrl)
+            state.StreamUrl == nextState.StreamUrl &&
+            state.CurrentUrl == nextState.CurrentUrl)
         {
             state = nextState.Clone();
             controller = screenController;
@@ -60,6 +61,7 @@ public class BrowserTvWebRtcViewer : MonoBehaviour
         state = nextState.Clone();
         controller = screenController;
         controller.SetVolume(state.Volume);
+        controller.SetState(BrowserTvScreenState.Standby);
 
         if (string.IsNullOrEmpty(state.StreamUrl))
         {
@@ -102,7 +104,7 @@ public class BrowserTvWebRtcViewer : MonoBehaviour
             media.AddOption(":network-caching=250");
             mediaPlayer.Play(media);
             controller.SetExternalTexture(texture);
-            Debug.Log("[BrowserTV] LibVLC preparing " + state.StreamUrl);
+            Debug.Log("[BrowserTV] LibVLC preparing " + state.StreamUrl + " for " + state.CurrentUrl);
         }
         catch (Exception ex)
         {
