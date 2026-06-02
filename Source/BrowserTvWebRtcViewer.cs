@@ -20,7 +20,9 @@ public class BrowserTvWebRtcViewer : MonoBehaviour
     private BrowserTvScreenController controller;
     private LibVLC libVlc;
     private MediaPlayer mediaPlayer;
+    private MediaPlayer audioPlayer;
     private Media media;
+    private Media audioMedia;
     private Texture2D texture;
     private byte[] decodeBuffer;
     private byte[] uploadBuffer;
@@ -52,6 +54,10 @@ public class BrowserTvWebRtcViewer : MonoBehaviour
             if (mediaPlayer != null)
             {
                 mediaPlayer.Volume = VolumeToVlc(state.Volume);
+            }
+            if (audioPlayer != null)
+            {
+                audioPlayer.Volume = VolumeToVlc(state.Volume);
             }
             return;
         }
@@ -101,8 +107,20 @@ public class BrowserTvWebRtcViewer : MonoBehaviour
 
             media = new Media(libVlc, new Uri(state.StreamUrl));
             media.AddOption(":demux=ts");
+            media.AddOption(":no-audio");
             media.AddOption(":network-caching=250");
             mediaPlayer.Play(media);
+
+            string audioUrl = GetAudioUrl(state.StreamUrl);
+            audioPlayer = new MediaPlayer(libVlc);
+            audioPlayer.Volume = VolumeToVlc(state.Volume);
+            audioPlayer.EncounteredError += (_, __) => Debug.LogWarning("[BrowserTV] LibVLC audio player encountered an error.");
+            audioMedia = new Media(libVlc, new Uri(audioUrl));
+            audioMedia.AddOption(":demux=ts");
+            audioMedia.AddOption(":no-video");
+            audioMedia.AddOption(":network-caching=250");
+            audioPlayer.Play(audioMedia);
+
             controller.SetExternalTexture(texture);
             Debug.Log("[BrowserTV] LibVLC preparing " + state.StreamUrl + " for " + state.CurrentUrl);
         }
@@ -131,10 +149,31 @@ public class BrowserTvWebRtcViewer : MonoBehaviour
             mediaPlayer = null;
         }
 
+        if (audioPlayer != null)
+        {
+            try
+            {
+                audioPlayer.Stop();
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning("[BrowserTV] LibVLC audio stop failed: " + ex.Message);
+            }
+
+            audioPlayer.Dispose();
+            audioPlayer = null;
+        }
+
         if (media != null)
         {
             media.Dispose();
             media = null;
+        }
+
+        if (audioMedia != null)
+        {
+            audioMedia.Dispose();
+            audioMedia = null;
         }
 
         if (libVlc != null)
@@ -326,6 +365,11 @@ public class BrowserTvWebRtcViewer : MonoBehaviour
     private static int VolumeToVlc(float volume)
     {
         return Mathf.Clamp(Mathf.RoundToInt(volume * 100f), 0, 100);
+    }
+
+    private static string GetAudioUrl(string streamUrl)
+    {
+        return streamUrl.Replace("/stream.ts?", "/audio.ts?");
     }
 
     private void OnDestroy()

@@ -28,8 +28,8 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, {
         ok: true,
         active: Boolean(activeSession),
-    mediaRoot: MEDIA_ROOT,
-        media: "mpegts-av",
+        mediaRoot: MEDIA_ROOT,
+        media: "mpegts-split-av",
       });
     }
 
@@ -160,6 +160,9 @@ function restartChromium(session) {
 
   const chromium = spawnLogged(session, "chromium", [
     "--no-sandbox",
+    "--no-first-run",
+    "--no-default-browser-check",
+    "--disable-sync",
     "--disable-dev-shm-usage",
     "--disable-gpu",
     "--disable-software-rasterizer",
@@ -213,6 +216,9 @@ function serveMedia(_req, res, url) {
   if (name === "stream.ts") {
     return serveTransportStream(_req, res, session);
   }
+  if (name === "audio.ts") {
+    return serveAudioStream(_req, res, session);
+  }
 
   const file = path.join(session.dir, name);
   if (!file.startsWith(session.dir) || !fs.existsSync(file)) {
@@ -243,17 +249,12 @@ function serveTransportStream(req, res, session) {
   const ffmpeg = spawn("ffmpeg", [
     "-hide_banner",
     "-loglevel", "warning",
-    "-thread_queue_size", "512",
     "-f", "x11grab",
     "-draw_mouse", "1",
     "-video_size", `${WIDTH}x${HEIGHT}`,
     "-framerate", String(FPS),
     "-i", `${session.display}.0`,
-    "-thread_queue_size", "512",
-    "-f", "pulse",
-    "-i", `${session.pulseSink}.monitor`,
     "-map", "0:v:0",
-    "-map", "1:a:0",
     "-c:v", "libx264",
     "-preset", "veryfast",
     "-tune", "zerolatency",
@@ -261,10 +262,7 @@ function serveTransportStream(req, res, session) {
     "-g", String(FPS),
     "-keyint_min", String(FPS),
     "-sc_threshold", "0",
-    "-c:a", "aac",
-    "-b:a", "128k",
-    "-ar", "48000",
-    "-ac", "2",
+    "-an",
     "-f", "mpegts",
     "pipe:1",
   ], {
@@ -279,6 +277,46 @@ function serveTransportStream(req, res, session) {
   });
   ffmpeg.on("error", error => {
     console.error(JSON.stringify({ event: "stream_error", sessionId: session.sessionId, error: String(error?.message || error) }));
+  });
+
+  res.writeHead(200, {
+    "content-type": "video/mp2t",
+    "cache-control": "no-cache",
+  });
+  ffmpeg.stdout.pipe(res);
+
+  const stop = () => killProcess(ffmpeg);
+  req.on("close", stop);
+  res.on("close", stop);
+}
+
+function serveAudioStream(req, res, session) {
+  const ffmpeg = spawn("ffmpeg", [
+    "-hide_banner",
+    "-loglevel", "warning",
+    "-thread_queue_size", "512",
+    "-f", "pulse",
+    "-i", `${session.pulseSink}.monitor`,
+    "-map", "0:a:0",
+    "-vn",
+    "-c:a", "aac",
+    "-b:a", "128k",
+    "-ar", "48000",
+    "-ac", "2",
+    "-f", "mpegts",
+    "pipe:1",
+  ], {
+    env: makePulseEnv(session),
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+
+  console.log(JSON.stringify({ event: "audio_start", sessionId: session.sessionId }));
+  ffmpeg.stderr.on("data", data => logProcess(session, "ffmpeg-audio", data));
+  ffmpeg.on("exit", (code, signal) => {
+    console.log(JSON.stringify({ event: "audio_exit", sessionId: session.sessionId, code, signal }));
+  });
+  ffmpeg.on("error", error => {
+    console.error(JSON.stringify({ event: "audio_error", sessionId: session.sessionId, error: String(error?.message || error) }));
   });
 
   res.writeHead(200, {
