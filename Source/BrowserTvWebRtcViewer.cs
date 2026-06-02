@@ -10,6 +10,7 @@ public class BrowserTvWebRtcViewer : MonoBehaviour
     private const int Height = 720;
     private const int BytesPerPixel = 4;
     private const uint Pitch = Width * BytesPerPixel;
+    private const int BrightnessPercent = 60;
     private static readonly bool FlipVertical = true;
     private static readonly bool FlipHorizontal = false;
 
@@ -266,7 +267,11 @@ public class BrowserTvWebRtcViewer : MonoBehaviour
         int rowBytes = Width * BytesPerPixel;
         if (!FlipVertical && !FlipHorizontal)
         {
-            Buffer.BlockCopy(decodeBuffer, 0, uploadBuffer, 0, decodeBuffer.Length);
+            for (int y = 0; y < Height; y++)
+            {
+                CopyDimmedRow(y * rowBytes, y * rowBytes);
+            }
+
             texture.LoadRawTextureData(uploadBuffer);
             return;
         }
@@ -279,7 +284,7 @@ public class BrowserTvWebRtcViewer : MonoBehaviour
 
             if (!FlipHorizontal)
             {
-                Buffer.BlockCopy(decodeBuffer, sourceRow, uploadBuffer, targetRow, rowBytes);
+                CopyDimmedRow(sourceRow, targetRow);
                 continue;
             }
 
@@ -287,14 +292,33 @@ public class BrowserTvWebRtcViewer : MonoBehaviour
             {
                 int source = sourceRow + ((Width - 1 - x) * BytesPerPixel);
                 int target = targetRow + (x * BytesPerPixel);
-                uploadBuffer[target] = decodeBuffer[source];
-                uploadBuffer[target + 1] = decodeBuffer[source + 1];
-                uploadBuffer[target + 2] = decodeBuffer[source + 2];
+                uploadBuffer[target] = DimByte(decodeBuffer[source]);
+                uploadBuffer[target + 1] = DimByte(decodeBuffer[source + 1]);
+                uploadBuffer[target + 2] = DimByte(decodeBuffer[source + 2]);
                 uploadBuffer[target + 3] = decodeBuffer[source + 3];
             }
         }
 
         texture.LoadRawTextureData(uploadBuffer);
+    }
+
+    private void CopyDimmedRow(int sourceRow, int targetRow)
+    {
+        int rowBytes = Width * BytesPerPixel;
+        for (int offset = 0; offset < rowBytes; offset += BytesPerPixel)
+        {
+            int source = sourceRow + offset;
+            int target = targetRow + offset;
+            uploadBuffer[target] = DimByte(decodeBuffer[source]);
+            uploadBuffer[target + 1] = DimByte(decodeBuffer[source + 1]);
+            uploadBuffer[target + 2] = DimByte(decodeBuffer[source + 2]);
+            uploadBuffer[target + 3] = decodeBuffer[source + 3];
+        }
+    }
+
+    private static byte DimByte(byte value)
+    {
+        return (byte)((value * BrightnessPercent) / 100);
     }
 
     private static int VolumeToVlc(float volume)

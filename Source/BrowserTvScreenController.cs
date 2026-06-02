@@ -1,10 +1,12 @@
 using UnityEngine;
+using UnityEngine.Rendering;
 
 [RequireComponent(typeof(AudioSource))]
 public class BrowserTvScreenController : MonoBehaviour
 {
     private const string MainTex = "_MainTex";
-    private static readonly Color ScreenTint = new Color(0.5f, 0.5f, 0.5f, 1f);
+    private static readonly Color ScreenTint = new Color(0.22f, 0.22f, 0.22f, 1f);
+    private static readonly Color NoEmission = Color.black;
 
     private Renderer screenRenderer;
     private Material screenMaterial;
@@ -20,6 +22,7 @@ public class BrowserTvScreenController : MonoBehaviour
     {
         screenRenderer = renderer;
         screenMaterial = screenRenderer != null ? screenRenderer.material : null;
+        ConfigureScreenMaterial();
         audioSource = GetComponent<AudioSource>();
         audioSource.playOnAwake = false;
         audioSource.volume = 0.5f;
@@ -81,15 +84,48 @@ public class BrowserTvScreenController : MonoBehaviour
             return;
         }
 
+        ConfigureScreenMaterial();
         screenMaterial.SetTexture(MainTex, texture);
-        if (screenMaterial.HasProperty("_Color"))
+        SetColorIfPresent("_Color", tint);
+        SetColorIfPresent("_BaseColor", tint);
+        SetColorIfPresent("_TintColor", tint);
+        SetFloatIfPresent("_Brightness", 0.22f);
+        SetFloatIfPresent("_Intensity", 0f);
+        SetFloatIfPresent("_GlowStrength", 0f);
+        SetFloatIfPresent("_EmissionScaleUI", 0f);
+        SetFloatIfPresent("_EmissiveIntensity", 0f);
+        SetFloatIfPresent("_EmissiveExposureWeight", 0f);
+        SetColorIfPresent("_EmissionColor", NoEmission);
+        SetColorIfPresent("_EmissiveColor", NoEmission);
+        SetColorIfPresent("_Emission", NoEmission);
+    }
+
+    private void ConfigureScreenMaterial()
+    {
+        if (screenMaterial == null)
         {
-            screenMaterial.SetColor("_Color", tint);
+            return;
         }
 
-        if (screenMaterial.HasProperty("_EmissionColor"))
+        screenMaterial.DisableKeyword("_EMISSION");
+        screenMaterial.DisableKeyword("EMISSION");
+        screenMaterial.DisableKeyword("_EMISSIVE_COLOR_MAP");
+        screenMaterial.globalIlluminationFlags = MaterialGlobalIlluminationFlags.EmissiveIsBlack;
+    }
+
+    private void SetColorIfPresent(string propertyName, Color color)
+    {
+        if (screenMaterial != null && screenMaterial.HasProperty(propertyName))
         {
-            screenMaterial.SetColor("_EmissionColor", tint);
+            screenMaterial.SetColor(propertyName, color);
+        }
+    }
+
+    private void SetFloatIfPresent(string propertyName, float value)
+    {
+        if (screenMaterial != null && screenMaterial.HasProperty(propertyName))
+        {
+            screenMaterial.SetFloat(propertyName, value);
         }
     }
 
