@@ -1,9 +1,11 @@
 using UnityEngine;
+using System.Collections;
 
 public class BrowserTvWebRtcViewerHost : MonoBehaviour
 {
     private static BrowserTvWebRtcViewerHost instance;
     private BrowserTvWebRtcViewer viewer;
+    private Coroutine applyLoop;
 
     public static BrowserTvWebRtcViewerHost Ensure()
     {
@@ -20,16 +22,32 @@ public class BrowserTvWebRtcViewerHost : MonoBehaviour
 
     public void ApplyState(BrowserTvState state)
     {
+        if (applyLoop != null)
+        {
+            StopCoroutine(applyLoop);
+            applyLoop = null;
+        }
+
         if (state.Power != BrowserTvPowerState.On || string.IsNullOrEmpty(state.SessionId))
         {
             StopViewer();
             return;
         }
 
+        applyLoop = StartCoroutine(ApplyStateDelayed(state.Clone()));
+    }
+
+    private IEnumerator ApplyStateDelayed(BrowserTvState state)
+    {
+        yield return null;
+        yield return null;
+        yield return null;
+
         BrowserTvScreenController controller = BrowserTvManager.Instance.GetController(state.BlockPos);
         if (controller == null)
         {
-            return;
+            applyLoop = null;
+            yield break;
         }
 
         if (viewer == null)
@@ -38,6 +56,7 @@ public class BrowserTvWebRtcViewerHost : MonoBehaviour
         }
 
         viewer.StartViewing(state, controller);
+        applyLoop = null;
     }
 
     private void StopViewer()

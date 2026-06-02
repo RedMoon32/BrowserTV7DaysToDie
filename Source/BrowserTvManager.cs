@@ -1,9 +1,11 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
 public class BrowserTvManager : MonoBehaviour
 {
     private static BrowserTvManager instance;
+    private static readonly Queue<Action> MainThreadActions = new Queue<Action>();
     private readonly Dictionary<Vector3i, BrowserTvScreenController> controllers = new Dictionary<Vector3i, BrowserTvScreenController>();
 
     public static BrowserTvManager Instance
@@ -25,6 +27,46 @@ public class BrowserTvManager : MonoBehaviour
         GameObject gameObject = new GameObject("BrowserTvManager");
         instance = gameObject.AddComponent<BrowserTvManager>();
         DontDestroyOnLoad(gameObject);
+    }
+
+    public static void RunOnMainThread(Action action)
+    {
+        if (action == null)
+        {
+            return;
+        }
+
+        EnsureCreated();
+        lock (MainThreadActions)
+        {
+            MainThreadActions.Enqueue(action);
+        }
+    }
+
+    private void Update()
+    {
+        while (true)
+        {
+            Action action;
+            lock (MainThreadActions)
+            {
+                if (MainThreadActions.Count == 0)
+                {
+                    return;
+                }
+
+                action = MainThreadActions.Dequeue();
+            }
+
+            try
+            {
+                action();
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError("[BrowserTV] Main-thread action failed: " + ex.GetType().Name + ": " + ex.Message + "\n" + ex.StackTrace);
+            }
+        }
     }
 
     public void Register(Vector3i worldPos, BrowserTvScreenController controller)

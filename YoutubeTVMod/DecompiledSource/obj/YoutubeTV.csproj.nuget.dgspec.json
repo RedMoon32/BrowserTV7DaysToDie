@@ -1,26 +1,25 @@
 {
   "format": 1,
   "restore": {
-    "/Users/rb/Library/Application Support/Steam/steamapps/common/7 Days To Die/Mods/YoutubeTVMod.backup-youtube-working.20260601184948/DecompiledSource/YoutubeTV.csproj": {}
+    "C:\\Program Files (x86)\\Steam\\steamapps\\common\\7 Days To Die\\Mods\\BrowserTV\\YoutubeTVMod\\DecompiledSource\\YoutubeTV.csproj": {}
   },
   "projects": {
-    "/Users/rb/Library/Application Support/Steam/steamapps/common/7 Days To Die/Mods/YoutubeTVMod.backup-youtube-working.20260601184948/DecompiledSource/YoutubeTV.csproj": {
+    "C:\\Program Files (x86)\\Steam\\steamapps\\common\\7 Days To Die\\Mods\\BrowserTV\\YoutubeTVMod\\DecompiledSource\\YoutubeTV.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "/Users/rb/Library/Application Support/Steam/steamapps/common/7 Days To Die/Mods/YoutubeTVMod.backup-youtube-working.20260601184948/DecompiledSource/YoutubeTV.csproj",
+        "projectUniqueName": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\7 Days To Die\\Mods\\BrowserTV\\YoutubeTVMod\\DecompiledSource\\YoutubeTV.csproj",
         "projectName": "YoutubeTV",
-        "projectPath": "/Users/rb/Library/Application Support/Steam/steamapps/common/7 Days To Die/Mods/YoutubeTVMod.backup-youtube-working.20260601184948/DecompiledSource/YoutubeTV.csproj",
-        "packagesPath": "/Users/rb/.nuget/packages/",
-        "outputPath": "/Users/rb/Library/Application Support/Steam/steamapps/common/7 Days To Die/Mods/YoutubeTVMod.backup-youtube-working.20260601184948/DecompiledSource/obj/",
+        "projectPath": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\7 Days To Die\\Mods\\BrowserTV\\YoutubeTVMod\\DecompiledSource\\YoutubeTV.csproj",
+        "packagesPath": "C:\\Users\\rinat\\.nuget\\packages\\",
+        "outputPath": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\7 Days To Die\\Mods\\BrowserTV\\YoutubeTVMod\\DecompiledSource\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
-          "/Users/rb/.nuget/NuGet/NuGet.Config"
+          "C:\\Users\\rinat\\AppData\\Roaming\\NuGet\\NuGet.Config"
         ],
         "originalTargetFrameworks": [
           "net48"
         ],
         "sources": {
-          "/opt/homebrew/Cellar/dotnet/9.0.6/libexec/library-packs": {},
           "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {
@@ -39,7 +38,7 @@
           "auditLevel": "low",
           "auditMode": "direct"
         },
-        "SdkAnalysisLevel": "9.0.100"
+        "SdkAnalysisLevel": "10.0.100"
       },
       "frameworks": {
         "net48": {
@@ -57,7 +56,7 @@
               "version": "[1.0.3, )"
             }
           },
-          "runtimeIdentifierGraphPath": "/opt/homebrew/Cellar/dotnet/9.0.6/libexec/sdk/9.0.107/RuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.100-preview.5.25277.114\\RuntimeIdentifierGraph.json"
         }
       }
     }

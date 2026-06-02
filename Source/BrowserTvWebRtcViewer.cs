@@ -4,11 +4,14 @@ using System.IO;
 using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 using Unity.WebRTC;
 using UnityEngine;
 
 public class BrowserTvWebRtcViewer : MonoBehaviour
 {
+    private static bool webRtcInitialized;
+
     private BrowserTvState state;
     private BrowserTvScreenController controller;
     private RTCPeerConnection peer;
@@ -25,6 +28,12 @@ public class BrowserTvWebRtcViewer : MonoBehaviour
 
         state = nextState.Clone();
         controller = screenController;
+        if (controller == null)
+        {
+            Debug.LogWarning("[BrowserTV] Cannot start WebRTC viewer because screen controller is missing at " + state.BlockPos);
+            return;
+        }
+
         controller.SetVolume(state.Volume);
 
         StopViewing();
@@ -55,21 +64,66 @@ public class BrowserTvWebRtcViewer : MonoBehaviour
 
     private IEnumerator Connect()
     {
-        BrowserTvNativePluginLoader.Load();
-        if (updateLoop == null)
+        IEnumerator routine;
+        try
         {
-            updateLoop = StartCoroutine(WebRTC.Update());
+            routine = ConnectUnsafe();
+        }
+        catch (Exception ex)
+        {
+            Fail("WebRTC viewer setup failed", ex);
+            yield break;
         }
 
-        BrowserTvWebRtcOffer offer = FetchOffer();
+        while (true)
+        {
+            object current;
+            try
+            {
+                if (!routine.MoveNext())
+                {
+                    yield break;
+                }
+
+                current = routine.Current;
+            }
+            catch (Exception ex)
+            {
+                Fail("WebRTC viewer failed", ex);
+                yield break;
+            }
+
+            yield return current;
+        }
+    }
+
+    private IEnumerator ConnectUnsafe()
+    {
+        BrowserTvNativePluginLoader.Load();
+        if (!webRtcInitialized)
+        {
+            WebRTC.ConfigureNativeLogging(true, NativeLoggingSeverity.Warning);
+            WebRTC.InitializeInternal();
+            webRtcInitialized = true;
+            Debug.Log("[BrowserTV] WebRTC context initialized.");
+        }
+
+        if (updateLoop == null)
+        {
+            updateLoop = StartCoroutine(SafeWebRtcUpdate());
+        }
+
+        BackgroundTask<BrowserTvWebRtcOffer> offerTask = RunBackground(FetchOffer);
+        yield return WaitForBackground(offerTask);
+        BrowserTvWebRtcOffer offer = offerTask.Result;
         if (string.IsNullOrEmpty(offer.Sdp))
         {
             Debug.LogError("[BrowserTV] Bridge did not provide a WebRTC offer.");
             yield break;
         }
 
-        RTCConfiguration config = default;
-        peer = offer.Lite ? new RTCPeerConnection() : new RTCPeerConnection(ref config);
+        peer = new RTCPeerConnection();
+        Debug.Log("[BrowserTV] RTCPeerConnection created.");
         peer.OnIceCandidate = candidate =>
         {
             if (candidate == null)
@@ -126,29 +180,90 @@ public class BrowserTvWebRtcViewer : MonoBehaviour
             yield break;
         }
 
-        PostAnswer(answer.sdp);
+        BackgroundTask<object> answerTask = RunBackground<object>(() =>
+        {
+            PostAnswer(answer.sdp);
+            return null;
+        });
+        yield return WaitForBackground(answerTask);
+
         StartCoroutine(PollRemoteIce());
         Debug.Log("[BrowserTV] WebRTC answer sent.");
+    }
+
+    private void Fail(string message, Exception ex)
+    {
+        Debug.LogError("[BrowserTV] " + message + ": " + ex.GetType().Name + ": " + ex.Message + "\n" + ex.StackTrace);
+        StopViewing();
+        if (controller != null)
+        {
+            controller.SetState(BrowserTvScreenState.Error);
+        }
     }
 
     private IEnumerator PollRemoteIce()
     {
         while (peer != null)
         {
-            string json = HttpGet("/api/client/session/" + Escape(state.SessionId) + "/webrtc/ice?token=" + Escape(state.ViewerToken) + "&since=" + remoteIceIndex);
-            foreach (Match match in Regex.Matches(json ?? "", "\\{\\s*\"candidate\"\\s*:\\s*\"([^\"]*)\"\\s*,\\s*\"sdpMid\"\\s*:\\s*\"([^\"]*)\"\\s*,\\s*\"sdpMLineIndex\"\\s*:\\s*(\\d+)\\s*\\}"))
+            BackgroundTask<string> iceTask = RunBackground(() => HttpGet("/api/client/session/" + Escape(state.SessionId) + "/webrtc/ice?token=" + Escape(state.ViewerToken) + "&since=" + remoteIceIndex));
+            while (!iceTask.IsDone)
             {
-                RTCIceCandidateInit init = new RTCIceCandidateInit
+                yield return null;
+            }
+
+            if (iceTask.Error != null)
+            {
+                Debug.LogWarning("[BrowserTV] Remote ICE poll failed: " + iceTask.Error.Message);
+                yield return new WaitForSeconds(1f);
+                continue;
+            }
+
+            string json = iceTask.Result;
+            try
+            {
+                foreach (Match match in Regex.Matches(json ?? "", "\\{\\s*\"candidate\"\\s*:\\s*\"([^\"]*)\"\\s*,\\s*\"sdpMid\"\\s*:\\s*\"([^\"]*)\"\\s*,\\s*\"sdpMLineIndex\"\\s*:\\s*(\\d+)\\s*\\}"))
                 {
-                    candidate = Regex.Unescape(match.Groups[1].Value),
-                    sdpMid = Regex.Unescape(match.Groups[2].Value),
-                    sdpMLineIndex = int.Parse(match.Groups[3].Value)
-                };
-                peer.AddIceCandidate(new RTCIceCandidate(init));
-                remoteIceIndex++;
+                    RTCIceCandidateInit init = new RTCIceCandidateInit
+                    {
+                        candidate = Regex.Unescape(match.Groups[1].Value),
+                        sdpMid = Regex.Unescape(match.Groups[2].Value),
+                        sdpMLineIndex = int.Parse(match.Groups[3].Value)
+                    };
+                    peer.AddIceCandidate(new RTCIceCandidate(init));
+                    remoteIceIndex++;
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning("[BrowserTV] Remote ICE parse/add failed: " + ex.Message);
             }
 
             yield return new WaitForSeconds(0.2f);
+        }
+    }
+
+    private IEnumerator SafeWebRtcUpdate()
+    {
+        IEnumerator update = WebRTC.Update();
+        while (true)
+        {
+            object current;
+            try
+            {
+                if (!update.MoveNext())
+                {
+                    yield break;
+                }
+
+                current = update.Current;
+            }
+            catch (Exception ex)
+            {
+                Fail("WebRTC update failed", ex);
+                yield break;
+            }
+
+            yield return current;
         }
     }
 
@@ -170,13 +285,19 @@ public class BrowserTvWebRtcViewer : MonoBehaviour
     private void PostIce(RTCIceCandidate candidate)
     {
         string body = "{\"candidate\":\"" + JsonEscape(candidate.Candidate) + "\",\"sdpMid\":\"" + JsonEscape(candidate.SdpMid) + "\",\"sdpMLineIndex\":" + candidate.SdpMLineIndex.GetValueOrDefault() + "}";
-        HttpPost("/api/client/session/" + Escape(state.SessionId) + "/webrtc/ice?token=" + Escape(state.ViewerToken), body);
+        RunBackground<object>(() =>
+        {
+            HttpPost("/api/client/session/" + Escape(state.SessionId) + "/webrtc/ice?token=" + Escape(state.ViewerToken), body);
+            return null;
+        });
     }
 
     private string HttpGet(string path)
     {
         HttpWebRequest request = (HttpWebRequest)WebRequest.Create(state.BridgeEndpoint + path);
         request.Method = "GET";
+        request.Timeout = 10000;
+        request.ReadWriteTimeout = 10000;
         using (HttpWebResponse response = (HttpWebResponse)request.GetResponse())
         using (StreamReader reader = new StreamReader(response.GetResponseStream()))
         {
@@ -191,6 +312,8 @@ public class BrowserTvWebRtcViewer : MonoBehaviour
         request.Method = "POST";
         request.ContentType = "application/json";
         request.ContentLength = bytes.Length;
+        request.Timeout = 10000;
+        request.ReadWriteTimeout = 10000;
         using (Stream stream = request.GetRequestStream())
         {
             stream.Write(bytes, 0, bytes.Length);
@@ -222,6 +345,96 @@ public class BrowserTvWebRtcViewer : MonoBehaviour
     private static string JsonEscape(string value)
     {
         return (value ?? "").Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\r", "\\r").Replace("\n", "\\n");
+    }
+
+    private static BackgroundTask<T> RunBackground<T>(Func<T> work)
+    {
+        BackgroundTask<T> task = new BackgroundTask<T>();
+        ThreadPool.QueueUserWorkItem(_ =>
+        {
+            try
+            {
+                task.Complete(work());
+            }
+            catch (Exception ex)
+            {
+                task.Fail(ex);
+            }
+        });
+
+        return task;
+    }
+
+    private static IEnumerator WaitForBackground<T>(BackgroundTask<T> task)
+    {
+        while (!task.IsDone)
+        {
+            yield return null;
+        }
+
+        if (task.Error != null)
+        {
+            throw task.Error;
+        }
+    }
+
+    private sealed class BackgroundTask<T>
+    {
+        private readonly object sync = new object();
+        private bool done;
+        private T result;
+        private Exception error;
+
+        public bool IsDone
+        {
+            get
+            {
+                lock (sync)
+                {
+                    return done;
+                }
+            }
+        }
+
+        public T Result
+        {
+            get
+            {
+                lock (sync)
+                {
+                    return result;
+                }
+            }
+        }
+
+        public Exception Error
+        {
+            get
+            {
+                lock (sync)
+                {
+                    return error;
+                }
+            }
+        }
+
+        public void Complete(T value)
+        {
+            lock (sync)
+            {
+                result = value;
+                done = true;
+            }
+        }
+
+        public void Fail(Exception ex)
+        {
+            lock (sync)
+            {
+                error = ex;
+                done = true;
+            }
+        }
     }
 
     private sealed class BrowserTvWebRtcOffer

@@ -64,9 +64,7 @@ public sealed class BrowserTvBridgeClient
         using (HttpWebResponse response = (HttpWebResponse)request.GetResponse())
         using (StreamReader reader = new StreamReader(response.GetResponseStream()))
         {
-            string text = reader.ReadToEnd();
-            Debug.Log("[BrowserTV] Bridge POST " + path + " -> " + (int)response.StatusCode);
-            return text;
+            return reader.ReadToEnd();
         }
     }
 

@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using UnityEngine;
 
 public static class BrowserTvServerStateService
@@ -6,6 +7,7 @@ public static class BrowserTvServerStateService
     private static readonly object Sync = new object();
     private static BrowserTvState state = new BrowserTvState();
     private static BrowserTvBridgeClient bridgeClient;
+    private static int operationRevision;
 
     public static BrowserTvState Current
     {
@@ -56,6 +58,7 @@ public static class BrowserTvServerStateService
 
     public static void PowerOn(Vector3i blockPos, string url, int entityId)
     {
+        int requestRevision;
         lock (Sync)
         {
             if (state.Power != BrowserTvPowerState.Off && !state.IsSameTv(blockPos))
@@ -73,36 +76,56 @@ public static class BrowserTvServerStateService
             state.ControllerEntityId = entityId;
             state.StatusText = "Starting browser session";
             state.Revision++;
+            requestRevision = ++operationRevision;
             BroadcastStateLocked();
         }
 
-        try
+        ThreadPool.QueueUserWorkItem(_ =>
         {
-            BrowserTvBridgeStartResult result = bridgeClient.StartSession(blockPos, url);
-            lock (Sync)
+            try
             {
-                state.Power = BrowserTvPowerState.On;
-                state.BlockPos = blockPos;
-                state.SessionId = result.SessionId;
-                state.BridgeEndpoint = BrowserTvConfig.Current.BridgePublicUrl;
-                state.ViewerToken = result.ViewerToken;
-                state.ControllerToken = result.ControllerToken;
-                state.CurrentUrl = url;
-                state.StatusText = string.IsNullOrEmpty(result.StatusText) ? "On" : result.StatusText;
-                state.Revision++;
-                BroadcastStateLocked();
+                BrowserTvBridgeStartResult result = bridgeClient.StartSession(blockPos, url);
+                BrowserTvManager.RunOnMainThread(() =>
+                {
+                    lock (Sync)
+                    {
+                        if (requestRevision != operationRevision || !state.IsSameTv(blockPos) || state.Power != BrowserTvPowerState.Starting)
+                        {
+                            return;
+                        }
+
+                        state.Power = BrowserTvPowerState.On;
+                        state.BlockPos = blockPos;
+                        state.SessionId = result.SessionId;
+                        state.BridgeEndpoint = BrowserTvConfig.Current.BridgePublicUrl;
+                        state.ViewerToken = result.ViewerToken;
+                        state.ControllerToken = result.ControllerToken;
+                        state.CurrentUrl = url;
+                        state.StatusText = string.IsNullOrEmpty(result.StatusText) ? "On" : result.StatusText;
+                        state.Revision++;
+                        BroadcastStateLocked();
+                    }
+                });
             }
-        }
-        catch (Exception ex)
-        {
-            lock (Sync)
+            catch (Exception ex)
             {
-                state.Power = BrowserTvPowerState.Error;
-                state.StatusText = "Bridge unavailable: " + ex.Message;
-                state.Revision++;
-                BroadcastStateLocked();
+                BrowserTvManager.RunOnMainThread(() =>
+                {
+                    lock (Sync)
+                    {
+                        if (requestRevision != operationRevision || !state.IsSameTv(blockPos) || state.Power != BrowserTvPowerState.Starting)
+                        {
+                            return;
+                        }
+
+                        state.Power = BrowserTvPowerState.Error;
+                        state.StatusText = "Bridge unavailable: " + ex.Message;
+                        state.Revision++;
+                        BroadcastStateLocked();
+                    }
+                });
             }
-        }
+        });
     }
 
     public static void PowerOff(Vector3i blockPos)
@@ -116,18 +139,22 @@ public static class BrowserTvServerStateService
             }
 
             sessionId = state.SessionId;
+            operationRevision++;
             state.Reset();
             BroadcastStateLocked();
         }
 
-        try
+        ThreadPool.QueueUserWorkItem(_ =>
         {
-            bridgeClient.StopSession(sessionId);
-        }
-        catch (Exception ex)
-        {
-            Debug.LogWarning("[BrowserTV] Bridge stop failed: " + ex.Message);
-        }
+            try
+            {
+                bridgeClient.StopSession(sessionId);
+            }
+            catch (Exception ex)
+            {
+                BrowserTvManager.RunOnMainThread(() => Debug.LogWarning("[BrowserTV] Bridge stop failed: " + ex.Message));
+            }
+        });
     }
 
     private static void Navigate(Vector3i blockPos, string url)
@@ -143,7 +170,18 @@ public static class BrowserTvServerStateService
             state.StatusText = "Navigating";
             state.Revision++;
             BroadcastStateLocked();
-            bridgeClient.Navigate(state.SessionId, url);
+            string sessionId = state.SessionId;
+            ThreadPool.QueueUserWorkItem(_ =>
+            {
+                try
+                {
+                    bridgeClient.Navigate(sessionId, url);
+                }
+                catch (Exception ex)
+                {
+                    BrowserTvManager.RunOnMainThread(() => Debug.LogWarning("[BrowserTV] Bridge navigate failed: " + ex.Message));
+                }
+            });
         }
     }
 
@@ -172,7 +210,13 @@ public static class BrowserTvServerStateService
 
     private static void BroadcastStateLocked()
     {
-        SingletonMonoBehaviour<ConnectionManager>.Instance.SendToClientsOrServer(new BrowserTvStatePackage().Setup(state));
+        BrowserTvState snapshot = state.Clone();
+        SingletonMonoBehaviour<ConnectionManager>.Instance.SendToClientsOrServer(new BrowserTvStatePackage().Setup(snapshot));
+        if (!GameManager.IsDedicatedServer)
+        {
+            BrowserTvManager.RunOnMainThread(() => BrowserTvClientStateService.ApplyState(snapshot));
+        }
+
         Debug.Log("[BrowserTV] Broadcast state rev=" + state.Revision + " power=" + state.Power + " status=" + state.StatusText);
     }
 }
