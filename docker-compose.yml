@@ -4,30 +4,14 @@ services:
       context: ./bridge
     container_name: browser-tv-bridge
     restart: unless-stopped
+    shm_size: "2gb"
     environment:
       PORT: "8787"
       BROWSER_TV_SERVER_SECRET: "change-me-browser-tv-secret"
       BROWSER_TV_PUBLIC_URL: "http://127.0.0.1:8787"
       BROWSER_TV_DEFAULT_URL: "https://www.google.com"
-      NEKO_URL: "http://neko:8080"
-      NEKO_PASSWORD: "neko"
+      BROWSER_TV_WIDTH: "1280"
+      BROWSER_TV_HEIGHT: "720"
+      BROWSER_TV_FPS: "25"
     ports:
       - "8787:8787"
-    depends_on:
-      - neko
-
-  neko:
-    image: ghcr.io/m1k1o/neko/chromium:latest
-    container_name: browser-tv-neko
-    restart: unless-stopped
-    shm_size: "2gb"
-    environment:
-      NEKO_DESKTOP_SCREEN: "1280x720@30"
-      NEKO_WEBRTC_EPR: "59000-59100"
-      NEKO_WEBRTC_NAT1TO1: "127.0.0.1"
-      NEKO_WEBRTC_ICELITE: "1"
-      NEKO_MEMBER_MULTIUSER_USER_PASSWORD: "neko"
-      NEKO_MEMBER_MULTIUSER_ADMIN_PASSWORD: "admin"
-    ports:
-      - "8088:8080"
-      - "59000-59100:59000-59100/udp"

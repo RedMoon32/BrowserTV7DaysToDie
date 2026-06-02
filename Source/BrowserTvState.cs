@@ -4,6 +4,7 @@ public sealed class BrowserTvState
     public Vector3i BlockPos = Vector3i.zero;
     public string SessionId = "";
     public string BridgeEndpoint = "";
+    public string StreamUrl = "";
     public string ViewerToken = "";
     public string ControllerToken = "";
     public int ControllerEntityId = -1;
@@ -28,6 +29,7 @@ public sealed class BrowserTvState
         BlockPos = Vector3i.zero;
         SessionId = "";
         BridgeEndpoint = "";
+        StreamUrl = "";
         ViewerToken = "";
         ControllerToken = "";
         ControllerEntityId = -1;

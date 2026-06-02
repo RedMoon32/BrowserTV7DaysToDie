@@ -98,6 +98,7 @@ public static class BrowserTvServerStateService
                         state.BlockPos = blockPos;
                         state.SessionId = result.SessionId;
                         state.BridgeEndpoint = BrowserTvConfig.Current.BridgePublicUrl;
+                        state.StreamUrl = result.StreamUrl;
                         state.ViewerToken = result.ViewerToken;
                         state.ControllerToken = result.ControllerToken;
                         state.CurrentUrl = url;

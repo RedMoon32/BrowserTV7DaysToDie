@@ -19,6 +19,7 @@ public class BrowserTvStatePackage : NetPackage
         state.BlockPos = new Vector3i(((BinaryReader)(object)reader).ReadInt32(), ((BinaryReader)(object)reader).ReadInt32(), ((BinaryReader)(object)reader).ReadInt32());
         state.SessionId = ((BinaryReader)(object)reader).ReadString();
         state.BridgeEndpoint = ((BinaryReader)(object)reader).ReadString();
+        state.StreamUrl = ((BinaryReader)(object)reader).ReadString();
         state.ViewerToken = ((BinaryReader)(object)reader).ReadString();
         state.ControllerToken = ((BinaryReader)(object)reader).ReadString();
         state.ControllerEntityId = ((BinaryReader)(object)reader).ReadInt32();
@@ -37,6 +38,7 @@ public class BrowserTvStatePackage : NetPackage
         ((BinaryWriter)(object)writer).Write(state.BlockPos.z);
         ((BinaryWriter)(object)writer).Write(state.SessionId ?? "");
         ((BinaryWriter)(object)writer).Write(state.BridgeEndpoint ?? "");
+        ((BinaryWriter)(object)writer).Write(state.StreamUrl ?? "");
         ((BinaryWriter)(object)writer).Write(state.ViewerToken ?? "");
         ((BinaryWriter)(object)writer).Write(state.ControllerToken ?? "");
         ((BinaryWriter)(object)writer).Write(state.ControllerEntityId);
@@ -58,7 +60,7 @@ public class BrowserTvStatePackage : NetPackage
 
     public override int GetLength()
     {
-        return 128 + StringLen(state.SessionId) + StringLen(state.BridgeEndpoint) + StringLen(state.ViewerToken) + StringLen(state.ControllerToken) + StringLen(state.CurrentUrl) + StringLen(state.StatusText);
+        return 128 + StringLen(state.SessionId) + StringLen(state.BridgeEndpoint) + StringLen(state.StreamUrl) + StringLen(state.ViewerToken) + StringLen(state.ControllerToken) + StringLen(state.CurrentUrl) + StringLen(state.StatusText);
     }
 
     private static int StringLen(string value)

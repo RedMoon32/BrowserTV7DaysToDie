@@ -21,6 +21,7 @@ public sealed class BrowserTvBridgeClient
         return new BrowserTvBridgeStartResult
         {
             SessionId = GetString(response, "sessionId"),
+            StreamUrl = GetString(response, "streamUrl"),
             ViewerToken = GetString(response, "viewerToken"),
             ControllerToken = GetString(response, "controllerToken"),
             StatusText = GetString(response, "status")
@@ -88,6 +89,7 @@ public sealed class BrowserTvBridgeClient
 public sealed class BrowserTvBridgeStartResult
 {
     public string SessionId;
+    public string StreamUrl;
     public string ViewerToken;
     public string ControllerToken;
     public string StatusText;
