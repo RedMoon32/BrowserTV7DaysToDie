@@ -1,0 +1,7 @@
+<config>
+  <append xpath="//ruleset[@name='default']">
+    <window_group name="windowBrowserTvUrlInput" defaultSelected="content">
+      <window name="windowBrowserTvUrlInput" />
+    </window_group>
+  </append>
+</config>

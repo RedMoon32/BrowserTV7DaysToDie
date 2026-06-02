@@ -21,6 +21,10 @@
       <HintPath>..\..\..\7DaysToDie_Data\Managed\Assembly-CSharp.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <Reference Include="NGUI">
+      <HintPath>..\..\..\7DaysToDie_Data\Managed\NGUI.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
     <Reference Include="UnityEngine.CoreModule">
       <HintPath>..\..\..\7DaysToDie_Data\Managed\UnityEngine.CoreModule.dll</HintPath>
       <Private>false</Private>

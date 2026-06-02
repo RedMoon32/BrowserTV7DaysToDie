@@ -4,8 +4,10 @@ using UnityEngine;
 public class BrowserTvScreenController : MonoBehaviour
 {
     private const string MainTex = "_MainTex";
+    private static readonly Color ScreenTint = new Color(0.5f, 0.5f, 0.5f, 1f);
 
     private Renderer screenRenderer;
+    private Material screenMaterial;
     private Texture2D offTexture;
     private Texture2D standbyTexture;
     private Texture2D errorTexture;
@@ -17,6 +19,7 @@ public class BrowserTvScreenController : MonoBehaviour
     public void Initialize(Renderer renderer)
     {
         screenRenderer = renderer;
+        screenMaterial = screenRenderer != null ? screenRenderer.material : null;
         audioSource = GetComponent<AudioSource>();
         audioSource.playOnAwake = false;
         audioSource.volume = 0.5f;
@@ -51,7 +54,7 @@ public class BrowserTvScreenController : MonoBehaviour
                 break;
         }
 
-        screenRenderer.material.SetTexture(MainTex, texture);
+        ApplyScreenMaterial(texture, state == BrowserTvScreenState.Off ? Color.white : ScreenTint);
         Debug.Log("[BrowserTV] Screen " + gameObject.name + " set to " + state);
     }
 
@@ -67,7 +70,26 @@ public class BrowserTvScreenController : MonoBehaviour
     {
         if (screenRenderer != null && texture != null)
         {
-            screenRenderer.material.SetTexture(MainTex, texture);
+            ApplyScreenMaterial(texture, ScreenTint);
+        }
+    }
+
+    private void ApplyScreenMaterial(Texture texture, Color tint)
+    {
+        if (screenMaterial == null)
+        {
+            return;
+        }
+
+        screenMaterial.SetTexture(MainTex, texture);
+        if (screenMaterial.HasProperty("_Color"))
+        {
+            screenMaterial.SetColor("_Color", tint);
+        }
+
+        if (screenMaterial.HasProperty("_EmissionColor"))
+        {
+            screenMaterial.SetColor("_EmissionColor", tint);
         }
     }
 

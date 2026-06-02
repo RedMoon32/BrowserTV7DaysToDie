@@ -10,6 +10,8 @@ public class BrowserTvWebRtcViewer : MonoBehaviour
     private const int Height = 720;
     private const int BytesPerPixel = 4;
     private const uint Pitch = Width * BytesPerPixel;
+    private static readonly bool FlipVertical = true;
+    private static readonly bool FlipHorizontal = false;
 
     private static bool vlcInitialized;
 
@@ -170,7 +172,7 @@ public class BrowserTvWebRtcViewer : MonoBehaviour
                 return;
             }
 
-            texture.LoadRawTextureData(uploadBuffer);
+            CopyFrameForUnityUpload();
             frameReady = false;
         }
 
@@ -245,7 +247,6 @@ public class BrowserTvWebRtcViewer : MonoBehaviour
         {
             if (decodeBuffer != null && uploadBuffer != null)
             {
-                Buffer.BlockCopy(decodeBuffer, 0, uploadBuffer, 0, decodeBuffer.Length);
                 frameReady = true;
             }
         }
@@ -253,6 +254,47 @@ public class BrowserTvWebRtcViewer : MonoBehaviour
 
     private void DisplayFrame(IntPtr opaque, IntPtr picture)
     {
+    }
+
+    private void CopyFrameForUnityUpload()
+    {
+        if (decodeBuffer == null || uploadBuffer == null)
+        {
+            return;
+        }
+
+        int rowBytes = Width * BytesPerPixel;
+        if (!FlipVertical && !FlipHorizontal)
+        {
+            Buffer.BlockCopy(decodeBuffer, 0, uploadBuffer, 0, decodeBuffer.Length);
+            texture.LoadRawTextureData(uploadBuffer);
+            return;
+        }
+
+        for (int y = 0; y < Height; y++)
+        {
+            int sourceY = FlipVertical ? Height - 1 - y : y;
+            int sourceRow = sourceY * rowBytes;
+            int targetRow = y * rowBytes;
+
+            if (!FlipHorizontal)
+            {
+                Buffer.BlockCopy(decodeBuffer, sourceRow, uploadBuffer, targetRow, rowBytes);
+                continue;
+            }
+
+            for (int x = 0; x < Width; x++)
+            {
+                int source = sourceRow + ((Width - 1 - x) * BytesPerPixel);
+                int target = targetRow + (x * BytesPerPixel);
+                uploadBuffer[target] = decodeBuffer[source];
+                uploadBuffer[target + 1] = decodeBuffer[source + 1];
+                uploadBuffer[target + 2] = decodeBuffer[source + 2];
+                uploadBuffer[target + 3] = decodeBuffer[source + 3];
+            }
+        }
+
+        texture.LoadRawTextureData(uploadBuffer);
     }
 
     private static int VolumeToVlc(float volume)

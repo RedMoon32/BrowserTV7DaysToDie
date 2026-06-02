@@ -1,0 +1,12 @@
+<config>
+  <append xpath="/windows">
+    <window name="windowBrowserTvUrlInput" width="620" height="190" panel="center" cursor_area="true" controller="BrowserTvUrlInputWindow, BrowserTV">
+      <rect name="mainRect" depth="0" pos="0,0" width="620" height="190">
+        <sprite depth="0" name="background" sprite="menu_empty_background" color="[black]" type="sliced" fillcenter="true" />
+        <label depth="1" name="lblPrompt" pos="0,42" width="600" height="34" text="Browser URL" font_size="28" justify="center" />
+        <textfield depth="1" name="content" pos="20,-8" width="580" height="42" character_limit="512" focus_on_open="true" clear_on_open="false" open_vk_on_open="false" />
+        <label depth="1" name="lblHint" pos="0,-58" width="600" height="26" text="Press Enter to open" font_size="20" justify="center" />
+      </rect>
+    </window>
+  </append>
+</config>
