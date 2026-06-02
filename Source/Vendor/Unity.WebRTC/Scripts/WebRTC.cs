@@ -1140,20 +1140,32 @@ namespace Unity.WebRTC
             if (delay < 0f)
                 throw new ArgumentException($"The delay value is smaller than zero. delay:{delay}");
             if (Mathf.Approximately(delay, 0f))
-                s_syncContext.Post(DestroyImmediate, obj);
+                PostToMainThread(DestroyImmediate, obj);
             else
-                s_syncContext.Post(Destroy, Tuple.Create(obj, delay));
+                PostToMainThread(Destroy, Tuple.Create(obj, delay));
         }
 
         internal static void DelayActionOnMainThread(Action callback, float delay)
         {
-            s_syncContext.Post(DelayAction, Tuple.Create(callback, delay));
+            PostToMainThread(DelayAction, Tuple.Create(callback, delay));
         }
 
         internal static void Sync(IntPtr ptr, Action callback)
         {
-            s_syncContext.Post(SendOrPostCallback, new CallbackObject(ptr, callback));
+            PostToMainThread(SendOrPostCallback, new CallbackObject(ptr, callback));
         }
+
+        static void PostToMainThread(SendOrPostCallback callback, object state)
+        {
+            if (s_syncContext != null)
+            {
+                s_syncContext.Post(callback, state);
+                return;
+            }
+
+            global::BrowserTvManager.RunOnMainThread(() => callback(state));
+        }
+
         internal static string GetModuleName()
         {
             return System.IO.Path.GetFileName(Lib);
