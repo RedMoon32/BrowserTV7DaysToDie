@@ -1,0 +1,65 @@
+{
+  "format": 1,
+  "restore": {
+    "/Users/rb/Library/Application Support/Steam/steamapps/common/7 Days To Die/Mods/YoutubeTVMod.backup-youtube-working.20260601184948/DecompiledSource/YoutubeTV.csproj": {}
+  },
+  "projects": {
+    "/Users/rb/Library/Application Support/Steam/steamapps/common/7 Days To Die/Mods/YoutubeTVMod.backup-youtube-working.20260601184948/DecompiledSource/YoutubeTV.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "/Users/rb/Library/Application Support/Steam/steamapps/common/7 Days To Die/Mods/YoutubeTVMod.backup-youtube-working.20260601184948/DecompiledSource/YoutubeTV.csproj",
+        "projectName": "YoutubeTV",
+        "projectPath": "/Users/rb/Library/Application Support/Steam/steamapps/common/7 Days To Die/Mods/YoutubeTVMod.backup-youtube-working.20260601184948/DecompiledSource/YoutubeTV.csproj",
+        "packagesPath": "/Users/rb/.nuget/packages/",
+        "outputPath": "/Users/rb/Library/Application Support/Steam/steamapps/common/7 Days To Die/Mods/YoutubeTVMod.backup-youtube-working.20260601184948/DecompiledSource/obj/",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "/Users/rb/.nuget/NuGet/NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net48"
+        ],
+        "sources": {
+          "/opt/homebrew/Cellar/dotnet/9.0.6/libexec/library-packs": {},
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net48": {
+            "targetAlias": "net48",
+            "projectReferences": {}
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "9.0.100"
+      },
+      "frameworks": {
+        "net48": {
+          "targetAlias": "net48",
+          "dependencies": {
+            "Microsoft.NETFramework.ReferenceAssemblies": {
+              "suppressParent": "All",
+              "target": "Package",
+              "version": "[1.0.3, )",
+              "autoReferenced": true
+            },
+            "Microsoft.NETFramework.ReferenceAssemblies.net48": {
+              "suppressParent": "All",
+              "target": "Package",
+              "version": "[1.0.3, )"
+            }
+          },
+          "runtimeIdentifierGraphPath": "/opt/homebrew/Cellar/dotnet/9.0.6/libexec/sdk/9.0.107/RuntimeIdentifierGraph.json"
+        }
+      }
+    }
+  }
+}

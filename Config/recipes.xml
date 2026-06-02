@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configs>
+  <append xpath="/recipes">
+    <recipe name="BrowserTV" count="1" craft_area="workbench">
+      <ingredient name="resourceForgedIron" count="10"/>
+      <ingredient name="resourceElectricParts" count="10"/>
+      <ingredient name="glassBlockVariantHelper" count="2"/>
+      <ingredient name="speaker" count="1"/>
+    </recipe>
+    <recipe name="BrowserTVWall" count="1" craft_area="workbench">
+      <ingredient name="resourceForgedIron" count="10"/>
+      <ingredient name="resourceElectricParts" count="10"/>
+      <ingredient name="speaker" count="1"/>
+      <ingredient name="glassBlockVariantHelper" count="1"/>
+    </recipe>
+    <recipe name="BrowserBigTV" count="1" craft_area="workbench">
+      <ingredient name="resourceForgedIron" count="20"/>
+      <ingredient name="resourceElectricParts" count="15"/>
+      <ingredient name="speaker" count="1"/>
+      <ingredient name="glassBlockVariantHelper" count="2"/>
+    </recipe>
+    <recipe name="BrowserTheaterScreen" count="1" craft_area="workbench">
+      <ingredient name="resourceForgedIron" count="50"/>
+      <ingredient name="resourceElectricParts" count="20"/>
+      <ingredient name="speaker" count="2"/>
+      <ingredient name="glassBlockVariantHelper" count="10"/>
+    </recipe>
+    <recipe name="BrowserBillboard" count="1" craft_area="workbench">
+      <ingredient name="resourceForgedIron" count="100"/>
+      <ingredient name="resourceElectricParts" count="10"/>
+      <ingredient name="speaker" count="2"/>
+      <ingredient name="glassBlockVariantHelper" count="5"/>
+    </recipe>
+  </append>
+</configs>

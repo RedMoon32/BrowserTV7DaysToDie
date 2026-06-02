@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<xml>
+  <Name value="BrowserTV" />
+  <Author value="Rinat" />
+  <Description value="Remote browser TV block. NetPackages carry only state and control; media is handled out of band." />
+  <DisplayName value="BrowserTV" />
+  <Website value="" />
+  <Version value="0.1.0" />
+</xml>

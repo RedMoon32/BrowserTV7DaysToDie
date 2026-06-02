@@ -1,0 +1,6 @@
+python310.zip
+.
+Lib/site-packages
+
+# Enable site module for proper package discovery
+import site

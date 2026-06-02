@@ -1,0 +1,29 @@
+<config>
+<append xpath="/windows">
+<window name="windowYouTubeURLInput" width="380" height="200" panel="center" cursor_area="true" controller="InputWindow, YoutubeTV">
+    <rect name="mainRect" depth="0" pos="0,0" width="380" height="200">
+        <sprite depth="0" name="background" sprite="menu_empty_background" color="[black]" type="sliced" fillcenter="false" />
+        <label depth="1" name="lblPrompt" pos="0,30" width="360" height="30" text="Enter YouTube URL:" font_size="26" justify="center" />
+        
+        <textfield name="textInputYouTubeURL" pos="0,-10" width="360" height="40" character_limit="256" validation="integer"/>
+        <!-- This 'input' tag creates an XUiC_TextInput controller instance. -->
+        <!-- It requires a child label with name="text" for displaying the input content. -->
+        <!-- focus_on_open and clear_on_open are handled by XUiC_TextInput and our XUiC_InputWindow's OnOpen. -->
+        <input depth="1" name="urlInputField" id="urlInputField" pos="0,-10" width="360" height="40" character_limit="256" focus_on_open="true" clear_on_open="true">
+            <sprite depth="0" name="backgroundInput" sprite="menu_empty_text_input" color="[white]" type="sliced" fillcenter="true" />
+            <label depth="1" name="text" pos="5,0" width="350" height="38" font_size="24" color="[black]" justify="left" />
+        </input>
+        
+        <!-- The original button is removed for now. Submission is handled by pressing Enter in the input field. -->
+        <!-- If a visible submit button is desired, it can be added back and its OnPress event wired in XUiC_InputWindow.cs -->
+        <!-- Example:
+        <button depth="1" name="btnSubmit" pos="0,-60" width="120" height="35" caption_key="xuiOk">
+            <sprite name="background" sprite="menu_empty_button" color="[darkGrey]" type="sliced" />
+            <label name="text" caption_key="xuiOk" />
+        </button>
+        -->
+    </rect>
+</window>
+
+    </append>
+    </config>

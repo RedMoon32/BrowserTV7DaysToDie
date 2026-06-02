@@ -1,0 +1,32 @@
+<config>
+	<append xpath="/items">
+		<item name="toolRemoteVolume">
+			<property name="Tags" value="remote,volume"/>
+			<property name="HoldType" value="45"/>
+			<property name="DropMeshfile" value="#@modfolder:Resources/YoutubeTV.unity3d?toolRemote.prefab"/>
+			<property name="Meshfile" value="#@modfolder:Resources/YoutubeTV.unity3d?toolRemote.prefab"/>
+			<property name="DescriptionKey" value="toolRemoteVolumeDesc"/>
+			<property name="Material" value="Mplastics"/>
+			<property name="DegradationBreaksAfter" value="false"/>
+			<property name="Weight" value="1"/>
+			<property name="Stacknumber" value="1"/>
+			<property name="ShowQuality" value="false"/>
+			<property name="SoundPickup" value="parts_grab"/>
+			<property name="SoundPlace" value="parts_place"/>
+			<property class="Action0">
+				<property name="Class" value="YouTubeTVVolume, YoutubeTV"/>
+				<property name="Delay" value="0.1"/>
+				<property name="Sound_start" value="remoteClick"/>
+			</property>
+			<effect_group name="Base Effects" tiered="false">
+				<passive_effect name="PlayerExpGain" operation="perc_subtract" value="0"/>
+				<passive_effect name="ModSlots" operation="base_set" value="0"/>
+				<passive_effect name="DegradationMax" operation="base_set" value="6000"/>
+				<passive_effect name="DegradationPerUse" operation="base_set" value="0"/>
+			</effect_group>
+			<property name="EconomicValue" value="20"/>
+			<property name="EconomicBundleSize" value="1"/>
+			<property name="SellableToTrader" value="true"/>
+		</item>
+	</append>
+</config>

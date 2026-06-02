@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "dgSpecHash": "qkUly07wQ3A=",
+  "success": true,
+  "projectFilePath": "/Users/rb/Library/Application Support/Steam/steamapps/common/7 Days To Die/Mods/YoutubeTVMod.backup-youtube-working.20260601184948/DecompiledSource/YoutubeTV.csproj",
+  "expectedPackageFiles": [
+    "/Users/rb/.nuget/packages/microsoft.netframework.referenceassemblies/1.0.3/microsoft.netframework.referenceassemblies.1.0.3.nupkg.sha512",
+    "/Users/rb/.nuget/packages/microsoft.netframework.referenceassemblies.net48/1.0.3/microsoft.netframework.referenceassemblies.net48.1.0.3.nupkg.sha512"
+  ],
+  "logs": []
+}

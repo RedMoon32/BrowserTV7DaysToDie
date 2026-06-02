@@ -1,0 +1,15 @@
+Key,File,Type,UsedInMainMenu,NoTranslate,english,Context / Alternate Text,german,latam,french,italian,japanese,koreana,polish,brazilian,russian,turkish,schinese,tchinese,spanish
+
+YouTubeTV,blocks,Block,,,YouTube TV,,,,,,,,,,,,,
+YoutubeTheaterScreen,blocks,Block,,,Youtube Drive-in Screen
+YouTubeTVDesc,blocks,Block,,,"A high-tech TV that can play YouTube videos. Interact to enter a YouTube URL.",,,,,,,,,,,,,
+YouTubeTVWall,blocks,Block,,,"Wall Youtube TV",,,,,,,,,,,,,
+YouTubeTVWallDesc,blocks,Block,,,"A flatscreen TV that can be mounted on the wall.",,,,,,,,,,,,,
+YoutubeBigTV,blocks,Block,,,"Large Youtube TV",,,,,,,,,,,,,
+YoutubeBigTVDesc,blocks,Block,,,"A large, flat screen TV that can be placed on the wall.",,,,,,,,,,,,,
+YoutubeBillboard,blocks,Block,,,"Youtube Billboard TV",,,,,,,,,,,,,
+YoutubeBillboardDesc,blocks,Block,,,"A Large, tall, billboard with a TV attached, and lighting.",,,,,,,,,,,,,
+toolRemoteVolume,items,Item,,,"Remote control",,,,,,,,,,,,,
+toolRemoteVolumeDesc,items,Item,,,"A remote control for a TV, Perhaps to watch Youtube Videos. The Remote allows you to adjust the volume of nearby YouTube TVs with left and right mouse buttons, and change the URL from afar.",,,,,,,,,,,,,
+ttTVNoURLToPlay,tooltips,Tooltip,,,"No YouTube URL set. Please enter a URL first.",,,,,,,,,,,,,
+ttTVRequiresPowerToPlay,tooltips,Tooltip,,,"TV requires power to play video.",,,,,,,,,,,,,

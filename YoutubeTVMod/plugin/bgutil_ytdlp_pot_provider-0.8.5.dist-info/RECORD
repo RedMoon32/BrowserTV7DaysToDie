@@ -1,0 +1,11 @@
+bgutil_ytdlp_pot_provider-0.8.5.dist-info/INSTALLER,sha256=zuuue4knoyJ-UwPPXg8fezS7VCrXJQrAP7zeNuwvFQg,4
+bgutil_ytdlp_pot_provider-0.8.5.dist-info/METADATA,sha256=2D7c4vBTz7O0HVKUS1CNdPWtoOEAsiyTjiQyydQ_Syk,7651
+bgutil_ytdlp_pot_provider-0.8.5.dist-info/RECORD,,
+bgutil_ytdlp_pot_provider-0.8.5.dist-info/REQUESTED,sha256=47DEQpj8HBSa-_TImW-5JCeuQeRkm5NMpJWZG3hSuFU,0
+bgutil_ytdlp_pot_provider-0.8.5.dist-info/WHEEL,sha256=qtCwoSJWgHk21S1Kb4ihdzI2rlJ1ZKaIurTj_ngOhyQ,87
+yt_dlp_plugins/extractor/__pycache__/getpot_bgutil.cpython-313.pyc,,
+yt_dlp_plugins/extractor/__pycache__/getpot_bgutil_http.cpython-313.pyc,,
+yt_dlp_plugins/extractor/__pycache__/getpot_bgutil_script.cpython-313.pyc,,
+yt_dlp_plugins/extractor/getpot_bgutil.py,sha256=FStx2hFzSKXaUnL3w6LmNlE25xuiFWvCgpTPWpYYtms,4270
+yt_dlp_plugins/extractor/getpot_bgutil_http.py,sha256=_MzkloNMDdpGshx8GEQ4hOxtTQ4BrbN6yE5f8VEJwBQ,4425
+yt_dlp_plugins/extractor/getpot_bgutil_script.py,sha256=EEsk1wr18Fo7gEbzOLN8ojvEXpyvL0wsiSzaOyRec9k,7210

@@ -1,0 +1,69 @@
+using System.Collections.Generic;
+using UnityEngine;
+
+public class BrowserTvManager : MonoBehaviour
+{
+    private static BrowserTvManager instance;
+    private readonly Dictionary<Vector3i, BrowserTvScreenController> controllers = new Dictionary<Vector3i, BrowserTvScreenController>();
+
+    public static BrowserTvManager Instance
+    {
+        get
+        {
+            EnsureCreated();
+            return instance;
+        }
+    }
+
+    public static void EnsureCreated()
+    {
+        if (instance != null)
+        {
+            return;
+        }
+
+        GameObject gameObject = new GameObject("BrowserTvManager");
+        instance = gameObject.AddComponent<BrowserTvManager>();
+        DontDestroyOnLoad(gameObject);
+    }
+
+    public void Register(Vector3i worldPos, BrowserTvScreenController controller)
+    {
+        if (controller == null)
+        {
+            return;
+        }
+
+        controllers[worldPos] = controller;
+        Debug.Log("[BrowserTV] Registered TV screen controller at " + worldPos);
+    }
+
+    public void Unregister(Vector3i worldPos)
+    {
+        if (controllers.TryGetValue(worldPos, out BrowserTvScreenController controller) && controller != null)
+        {
+            controller.SetState(BrowserTvScreenState.Off);
+        }
+
+        controllers.Remove(worldPos);
+        Debug.Log("[BrowserTV] Unregistered TV screen controller at " + worldPos);
+    }
+
+    public BrowserTvScreenController GetController(Vector3i worldPos)
+    {
+        controllers.TryGetValue(worldPos, out BrowserTvScreenController controller);
+        return controller;
+    }
+
+    public void SetScreenState(Vector3i worldPos, BrowserTvScreenState state)
+    {
+        BrowserTvScreenController controller = GetController(worldPos);
+        if (controller == null)
+        {
+            Debug.LogWarning("[BrowserTV] No screen controller registered at " + worldPos + " for state " + state);
+            return;
+        }
+
+        controller.SetState(state);
+    }
+}

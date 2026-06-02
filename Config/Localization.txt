@@ -1,0 +1,13 @@
+Key,File,Type,UsedInMainMenu,NoTranslate,english,Context / Alternate Text,german,latam,french,italian,japanese,koreana,polish,brazilian,russian,turkish,schinese,tchinese,spanish
+BrowserTV,blocks,Block,,,Browser TV,,,,,,,,,,,"Browser TV",,,,
+BrowserTVDesc,blocks,Block,,,"A powered TV block for displaying a remote browser session.",,,,,,,,,,,"TV-блок для отображения удаленной браузерной сессии.",,,,
+BrowserTVWall,blocks,Block,,,Wall Browser TV,,,,,,,,,,,"Настенный Browser TV",,,,
+BrowserTVWallDesc,blocks,Block,,,"A wall-mounted Browser TV.",,,,,,,,,,,"Настенный TV-блок для удаленного браузера.",,,,
+BrowserBigTV,blocks,Block,,,Large Browser TV,,,,,,,,,,,"Большой Browser TV",,,,
+BrowserBigTVDesc,blocks,Block,,,"A large Browser TV display.",,,,,,,,,,,"Большой TV-дисплей для удаленного браузера.",,,,
+BrowserTheaterScreen,blocks,Block,,,Browser Theater Screen,,,,,,,,,,,"Киноэкран Browser TV",,,,
+BrowserTheaterScreenDesc,blocks,Block,,,"A large theater screen for Browser TV.",,,,,,,,,,,"Большой киноэкран для Browser TV.",,,,
+BrowserBillboard,blocks,Block,,,Browser TV Billboard,,,,,,,,,,,"Билборд Browser TV",,,,
+BrowserBillboardDesc,blocks,Block,,,"A billboard-sized Browser TV display.",,,,,,,,,,,"Билборд-дисплей для Browser TV.",,,,
+ttBrowserTvRequiresPower,tooltips,Tooltip,,,"Browser TV requires power.",,,,,,,,,,,"Browser TV требует питание.",,,,
+ttBrowserTvPhaseOne,tooltips,Tooltip,,,"Browser TV block initialized. Browser bridge control is not wired yet.",,,,,,,,,,,"Browser TV инициализирован. Управление bridge еще не подключено.",,,,
