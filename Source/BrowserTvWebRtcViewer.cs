@@ -11,6 +11,8 @@ public class BrowserTvWebRtcViewer : MonoBehaviour
     private const int BytesPerPixel = 4;
     private const uint Pitch = Width * BytesPerPixel;
     private const int BrightnessPercent = 50;
+    private const int TargetFps = 30;
+    private const float FrameIntervalSeconds = 1f / TargetFps;
     private static readonly bool FlipVertical = true;
     private static readonly bool FlipHorizontal = false;
 
@@ -30,6 +32,7 @@ public class BrowserTvWebRtcViewer : MonoBehaviour
     private readonly object frameLock = new object();
     private volatile bool frameReady;
     private bool firstFrameDisplayed;
+    private float nextFrameUploadTime;
 
     private MediaPlayer.LibVLCVideoLockCb lockCallback;
     private MediaPlayer.LibVLCVideoUnlockCb unlockCallback;
@@ -197,12 +200,18 @@ public class BrowserTvWebRtcViewer : MonoBehaviour
         uploadBuffer = null;
         frameReady = false;
         firstFrameDisplayed = false;
+        nextFrameUploadTime = 0f;
         state = null;
     }
 
     private void Update()
     {
         if (!frameReady || texture == null)
+        {
+            return;
+        }
+
+        if (Time.unscaledTime < nextFrameUploadTime)
         {
             return;
         }
@@ -219,6 +228,7 @@ public class BrowserTvWebRtcViewer : MonoBehaviour
         }
 
         texture.Apply(false, false);
+        nextFrameUploadTime = Time.unscaledTime + FrameIntervalSeconds;
         if (!firstFrameDisplayed)
         {
             firstFrameDisplayed = true;

@@ -12,6 +12,6 @@ services:
       BROWSER_TV_DEFAULT_URL: "https://www.google.com"
       BROWSER_TV_WIDTH: "1280"
       BROWSER_TV_HEIGHT: "720"
-      BROWSER_TV_FPS: "25"
+      BROWSER_TV_FPS: "30"
     ports:
       - "8787:8787"
