@@ -168,12 +168,14 @@ function restartChromium(session) {
     "--disable-software-rasterizer",
     "--disable-background-networking",
     "--autoplay-policy=no-user-gesture-required",
+    "--lang=ru-RU",
+    "--accept-lang=ru-RU,ru",
     "--window-position=0,0",
     `--window-size=${WIDTH},${HEIGHT}`,
     "--start-fullscreen",
     "--kiosk",
     session.currentUrl,
-  ], { ...makePulseEnv(session), DISPLAY: session.display, PULSE_SINK: session.pulseSink });
+  ], makeChromiumEnv(session));
 
   session.chromium = chromium;
   session.processes.push(chromium);
@@ -354,6 +356,17 @@ function makePulseEnv(session) {
     XDG_RUNTIME_DIR: session.pulseRuntime,
     PULSE_RUNTIME_PATH: path.join(session.pulseRuntime, "pulse"),
     PULSE_SERVER: `unix:${path.join(session.pulseRuntime, "pulse", "native")}`,
+  };
+}
+
+function makeChromiumEnv(session) {
+  return {
+    ...makePulseEnv(session),
+    DISPLAY: session.display,
+    PULSE_SINK: session.pulseSink,
+    LANG: "ru_RU.UTF-8",
+    LC_ALL: "ru_RU.UTF-8",
+    LANGUAGE: "ru_RU:ru",
   };
 }
 
