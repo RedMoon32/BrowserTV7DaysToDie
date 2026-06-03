@@ -92,7 +92,7 @@ public class BrowserTvScreenController : MonoBehaviour
         screenMaterial.SetTexture(MainTex, texture);
         ApplyTextureTransform(flipVertical);
         SetColorIfPresent("_GlowColor", glowColor);
-        SetFloatIfPresent("_Exposure", isVideo ? 0.45f : 0.25f);
+        SetFloatIfPresent("_Exposure", isVideo ? 0.8f : 0.25f);
         SetFloatIfPresent("_Gamma", isVideo ? 1.35f : 1f);
         SetFloatIfPresent("_Contrast", 1f);
         SetFloatIfPresent("_Saturation", 1f);
