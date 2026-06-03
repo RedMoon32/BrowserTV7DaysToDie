@@ -428,3 +428,4 @@ C:\Program Files (x86)\Steam\steamapps\common\7 Days To Die\Mods\BrowserTV\libvl
 C:\Program Files (x86)\Steam\steamapps\common\7 Days To Die\Mods\BrowserTV\libvlc\win-x64\plugins\visualization\libgoom_plugin.dll
 C:\Program Files (x86)\Steam\steamapps\common\7 Days To Die\Mods\BrowserTV\libvlc\win-x64\plugins\visualization\libprojectm_plugin.dll
 C:\Program Files (x86)\Steam\steamapps\common\7 Days To Die\Mods\BrowserTV\libvlc\win-x64\plugins\visualization\libvisual_plugin.dll
+C:\Program Files (x86)\Steam\steamapps\common\7 Days To Die\Mods\BrowserTV\Source\obj\Release\BrowserTV.sourcelink.json

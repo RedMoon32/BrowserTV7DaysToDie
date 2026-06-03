@@ -78,6 +78,8 @@ public class BrowserTvManager : MonoBehaviour
 
         controllers[worldPos] = controller;
         Debug.Log("[BrowserTV] Registered TV screen controller at " + worldPos);
+        BrowserTvClientStateService.ReapplyIfCurrentTv(worldPos);
+        RequestServerState();
     }
 
     public void Unregister(Vector3i worldPos)
@@ -107,5 +109,21 @@ public class BrowserTvManager : MonoBehaviour
         }
 
         controller.SetState(state);
+    }
+
+    private static void RequestServerState()
+    {
+        if (SingletonMonoBehaviour<ConnectionManager>.Instance == null)
+        {
+            return;
+        }
+
+        if (SingletonMonoBehaviour<ConnectionManager>.Instance.IsClient)
+        {
+            SingletonMonoBehaviour<ConnectionManager>.Instance.SendToServer(new BrowserTvCommandPackage().Setup(BrowserTvCommandType.RequestState, Vector3i.zero, string.Empty, 0f, -1), false);
+            return;
+        }
+
+        BrowserTvServerStateService.BroadcastState();
     }
 }

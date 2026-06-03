@@ -6,6 +6,18 @@ public static class BrowserTvClientStateService
 
     public static BrowserTvState Current => current.Clone();
 
+    public static void ReapplyIfCurrentTv(Vector3i blockPos)
+    {
+        BrowserTvState snapshot = current.Clone();
+        if (snapshot.Power == BrowserTvPowerState.Off || !snapshot.IsSameTv(blockPos))
+        {
+            return;
+        }
+
+        Debug.Log("[BrowserTV] Reapplying current state for registered TV screen at " + blockPos);
+        ApplyState(snapshot);
+    }
+
     public static void ApplyState(BrowserTvState state)
     {
         if (state.Revision < current.Revision)
