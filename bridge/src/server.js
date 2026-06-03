@@ -29,7 +29,7 @@ const server = http.createServer(async (req, res) => {
         ok: true,
         active: Boolean(activeSession),
         mediaRoot: MEDIA_ROOT,
-        media: "mpegts-split-av",
+        media: "mpegts-av",
       });
     }
 
@@ -216,9 +216,6 @@ function serveMedia(_req, res, url) {
   if (name === "stream.ts") {
     return serveTransportStream(_req, res, session);
   }
-  if (name === "audio.ts") {
-    return serveAudioStream(_req, res, session);
-  }
 
   const file = path.join(session.dir, name);
   if (!file.startsWith(session.dir) || !fs.existsSync(file)) {
@@ -249,20 +246,37 @@ function serveTransportStream(req, res, session) {
   const ffmpeg = spawn("ffmpeg", [
     "-hide_banner",
     "-loglevel", "warning",
+    "-fflags", "+genpts",
+    "-thread_queue_size", "1024",
+    "-use_wallclock_as_timestamps", "1",
     "-f", "x11grab",
     "-draw_mouse", "1",
     "-video_size", `${WIDTH}x${HEIGHT}`,
     "-framerate", String(FPS),
     "-i", `${session.display}.0`,
+    "-thread_queue_size", "1024",
+    "-use_wallclock_as_timestamps", "1",
+    "-f", "pulse",
+    "-i", `${session.pulseSink}.monitor`,
     "-map", "0:v:0",
+    "-map", "1:a:0",
     "-c:v", "libx264",
-    "-preset", "veryfast",
+    "-preset", "ultrafast",
     "-tune", "zerolatency",
+    "-profile:v", "baseline",
+    "-x264-params", "bframes=0:rc-lookahead=0:sync-lookahead=0:sliced-threads=1",
     "-pix_fmt", "yuv420p",
+    "-r", String(FPS),
     "-g", String(FPS),
     "-keyint_min", String(FPS),
     "-sc_threshold", "0",
-    "-an",
+    "-c:a", "aac",
+    "-b:a", "128k",
+    "-ar", "48000",
+    "-ac", "2",
+    "-muxdelay", "0",
+    "-muxpreload", "0",
+    "-mpegts_flags", "+resend_headers",
     "-f", "mpegts",
     "pipe:1",
   ], {
@@ -270,7 +284,15 @@ function serveTransportStream(req, res, session) {
     stdio: ["ignore", "pipe", "pipe"],
   });
 
-  console.log(JSON.stringify({ event: "stream_start", sessionId: session.sessionId }));
+  console.log(JSON.stringify({
+    event: "stream_start",
+    sessionId: session.sessionId,
+    display: session.display,
+    sink: session.pulseSink,
+    fps: FPS,
+    width: WIDTH,
+    height: HEIGHT,
+  }));
   ffmpeg.stderr.on("data", data => logProcess(session, "ffmpeg-stream", data));
   ffmpeg.on("exit", (code, signal) => {
     console.log(JSON.stringify({ event: "stream_exit", sessionId: session.sessionId, code, signal }));
@@ -283,49 +305,29 @@ function serveTransportStream(req, res, session) {
     "content-type": "video/mp2t",
     "cache-control": "no-cache",
   });
-  ffmpeg.stdout.pipe(res);
 
-  const stop = () => killProcess(ffmpeg);
-  req.on("close", stop);
-  res.on("close", stop);
-}
+  let totalBytes = 0;
+  let intervalBytes = 0;
+  const statsTimer = setInterval(() => {
+    console.log(JSON.stringify({
+      event: "stream_bytes",
+      sessionId: session.sessionId,
+      intervalBytes,
+      totalBytes,
+    }));
+    intervalBytes = 0;
+  }, 2000);
 
-function serveAudioStream(req, res, session) {
-  const ffmpeg = spawn("ffmpeg", [
-    "-hide_banner",
-    "-loglevel", "warning",
-    "-thread_queue_size", "512",
-    "-f", "pulse",
-    "-i", `${session.pulseSink}.monitor`,
-    "-map", "0:a:0",
-    "-vn",
-    "-c:a", "aac",
-    "-b:a", "128k",
-    "-ar", "48000",
-    "-ac", "2",
-    "-f", "mpegts",
-    "pipe:1",
-  ], {
-    env: makePulseEnv(session),
-    stdio: ["ignore", "pipe", "pipe"],
-  });
-
-  console.log(JSON.stringify({ event: "audio_start", sessionId: session.sessionId }));
-  ffmpeg.stderr.on("data", data => logProcess(session, "ffmpeg-audio", data));
-  ffmpeg.on("exit", (code, signal) => {
-    console.log(JSON.stringify({ event: "audio_exit", sessionId: session.sessionId, code, signal }));
-  });
-  ffmpeg.on("error", error => {
-    console.error(JSON.stringify({ event: "audio_error", sessionId: session.sessionId, error: String(error?.message || error) }));
-  });
-
-  res.writeHead(200, {
-    "content-type": "video/mp2t",
-    "cache-control": "no-cache",
+  ffmpeg.stdout.on("data", chunk => {
+    totalBytes += chunk.length;
+    intervalBytes += chunk.length;
   });
   ffmpeg.stdout.pipe(res);
 
-  const stop = () => killProcess(ffmpeg);
+  const stop = () => {
+    clearInterval(statsTimer);
+    killProcess(ffmpeg);
+  };
   req.on("close", stop);
   res.on("close", stop);
 }
