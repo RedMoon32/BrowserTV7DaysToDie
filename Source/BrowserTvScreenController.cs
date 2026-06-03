@@ -5,8 +5,12 @@ using UnityEngine.Rendering;
 public class BrowserTvScreenController : MonoBehaviour
 {
     private const string MainTex = "_MainTex";
-    private static readonly Color ScreenTint = new Color(0.22f, 0.22f, 0.22f, 1f);
-    private static readonly Color NoEmission = Color.black;
+    private static readonly Color ScreenGlow = new Color(0.22f, 0.22f, 0.22f, 1f);
+    private static readonly Color VideoGlow = new Color(0.16f, 0.16f, 0.16f, 1f);
+    private static readonly Vector2 NormalTextureScale = Vector2.one;
+    private static readonly Vector2 NormalTextureOffset = Vector2.zero;
+    private static readonly Vector2 VideoTextureScale = new Vector2(1f, -1f);
+    private static readonly Vector2 VideoTextureOffset = new Vector2(0f, 1f);
 
     private Renderer screenRenderer;
     private Material screenMaterial;
@@ -57,7 +61,7 @@ public class BrowserTvScreenController : MonoBehaviour
                 break;
         }
 
-        ApplyScreenMaterial(texture, state == BrowserTvScreenState.Off ? Color.white : ScreenTint);
+        ApplyScreenMaterial(texture, state == BrowserTvScreenState.Off ? Color.black : ScreenGlow, false, false);
         Debug.Log("[BrowserTV] Screen " + gameObject.name + " set to " + state);
     }
 
@@ -73,11 +77,11 @@ public class BrowserTvScreenController : MonoBehaviour
     {
         if (screenRenderer != null && texture != null)
         {
-            ApplyScreenMaterial(texture, ScreenTint);
+            ApplyScreenMaterial(texture, VideoGlow, true, true);
         }
     }
 
-    private void ApplyScreenMaterial(Texture texture, Color tint)
+    private void ApplyScreenMaterial(Texture texture, Color glowColor, bool flipVertical, bool isVideo)
     {
         if (screenMaterial == null)
         {
@@ -86,18 +90,28 @@ public class BrowserTvScreenController : MonoBehaviour
 
         ConfigureScreenMaterial();
         screenMaterial.SetTexture(MainTex, texture);
-        SetColorIfPresent("_Color", tint);
-        SetColorIfPresent("_BaseColor", tint);
-        SetColorIfPresent("_TintColor", tint);
-        SetFloatIfPresent("_Brightness", 0.22f);
-        SetFloatIfPresent("_Intensity", 0f);
-        SetFloatIfPresent("_GlowStrength", 0f);
-        SetFloatIfPresent("_EmissionScaleUI", 0f);
-        SetFloatIfPresent("_EmissiveIntensity", 0f);
-        SetFloatIfPresent("_EmissiveExposureWeight", 0f);
-        SetColorIfPresent("_EmissionColor", NoEmission);
-        SetColorIfPresent("_EmissiveColor", NoEmission);
-        SetColorIfPresent("_Emission", NoEmission);
+        ApplyTextureTransform(flipVertical);
+        SetColorIfPresent("_GlowColor", glowColor);
+        SetFloatIfPresent("_Exposure", isVideo ? 0.45f : 0.25f);
+        SetFloatIfPresent("_Gamma", isVideo ? 1.35f : 1f);
+        SetFloatIfPresent("_Contrast", 1f);
+        SetFloatIfPresent("_Saturation", 1f);
+    }
+
+    private void ApplyTextureTransform(bool flipVertical)
+    {
+        Vector2 scale = flipVertical ? VideoTextureScale : NormalTextureScale;
+        Vector2 offset = flipVertical ? VideoTextureOffset : NormalTextureOffset;
+        SetTextureTransformIfPresent(MainTex, scale, offset);
+    }
+
+    private void SetTextureTransformIfPresent(string propertyName, Vector2 scale, Vector2 offset)
+    {
+        if (screenMaterial != null && screenMaterial.HasProperty(propertyName))
+        {
+            screenMaterial.SetTextureScale(propertyName, scale);
+            screenMaterial.SetTextureOffset(propertyName, offset);
+        }
     }
 
     private void ConfigureScreenMaterial()
@@ -107,9 +121,6 @@ public class BrowserTvScreenController : MonoBehaviour
             return;
         }
 
-        screenMaterial.DisableKeyword("_EMISSION");
-        screenMaterial.DisableKeyword("EMISSION");
-        screenMaterial.DisableKeyword("_EMISSIVE_COLOR_MAP");
         screenMaterial.globalIlluminationFlags = MaterialGlobalIlluminationFlags.EmissiveIsBlack;
     }
 

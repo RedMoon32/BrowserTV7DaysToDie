@@ -185,6 +185,11 @@ public class BlockBrowserTV : BlockPowered
     {
         if (!blockValue.ischild)
         {
+            if (!SingletonMonoBehaviour<ConnectionManager>.Instance.IsClient)
+            {
+                BrowserTvServerStateService.HandleBlockRemoved(blockPos);
+            }
+
             BrowserTvManager.Instance.Unregister(blockPos);
         }
 

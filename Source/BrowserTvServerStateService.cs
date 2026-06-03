@@ -62,7 +62,7 @@ public static class BrowserTvServerStateService
         int requestRevision;
         lock (Sync)
         {
-            if (state.Power != BrowserTvPowerState.Off && !state.IsSameTv(blockPos))
+            if ((state.Power == BrowserTvPowerState.Starting || state.Power == BrowserTvPowerState.On) && !state.IsSameTv(blockPos))
             {
                 state.Power = BrowserTvPowerState.Error;
                 state.StatusText = "Another Browser TV is already active";
@@ -155,6 +155,35 @@ public static class BrowserTvServerStateService
             catch (Exception ex)
             {
                 BrowserTvManager.RunOnMainThread(() => Debug.LogWarning("[BrowserTV] Bridge stop failed: " + ex.Message));
+            }
+        });
+    }
+
+    public static void HandleBlockRemoved(Vector3i blockPos)
+    {
+        string sessionId;
+        lock (Sync)
+        {
+            if (state.Power == BrowserTvPowerState.Off || !state.IsSameTv(blockPos))
+            {
+                return;
+            }
+
+            sessionId = state.SessionId;
+            operationRevision++;
+            state.Reset();
+            BroadcastStateLocked();
+        }
+
+        ThreadPool.QueueUserWorkItem(_ =>
+        {
+            try
+            {
+                bridgeClient.StopSession(sessionId);
+            }
+            catch (Exception ex)
+            {
+                BrowserTvManager.RunOnMainThread(() => Debug.LogWarning("[BrowserTV] Bridge stop after removed block failed: " + ex.Message));
             }
         });
     }
