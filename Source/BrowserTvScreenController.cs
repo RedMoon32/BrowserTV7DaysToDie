@@ -6,7 +6,7 @@ public class BrowserTvScreenController : MonoBehaviour
 {
     private const string MainTex = "_MainTex";
     private static readonly Color ScreenGlow = new Color(0.22f, 0.22f, 0.22f, 1f);
-    private static readonly Color VideoGlow = new Color(0.16f, 0.16f, 0.16f, 1f);
+    private static readonly Color VideoGlow = new Color(0.32f, 0.32f, 0.32f, 1f);
     private static readonly Vector2 NormalTextureScale = Vector2.one;
     private static readonly Vector2 NormalTextureOffset = Vector2.zero;
     private static readonly Vector2 VideoTextureScale = new Vector2(1f, -1f);
