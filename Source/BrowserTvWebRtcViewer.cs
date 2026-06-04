@@ -540,7 +540,7 @@ public class BrowserTvWebRtcViewer : MonoBehaviour
         Vector3 tvPosition = new Vector3(blockPos.x + 0.5f, blockPos.y + 0.5f, blockPos.z + 0.5f);
         float distance = Vector3.Distance(((EntityAlive)player).position, tvPosition);
         float minDistance = BrowserTvConfig.Current.AudioMinDistance;
-        float maxDistance = BrowserTvConfig.Current.AudioMaxDistance;
+        float maxDistance = BrowserTvConfig.Current.GetAudioMaxDistance(GetBlockName(blockPos));
         if (distance <= minDistance)
         {
             return 1f;
@@ -553,6 +553,26 @@ public class BrowserTvWebRtcViewer : MonoBehaviour
 
         float t = Mathf.InverseLerp(minDistance, maxDistance, distance);
         return Mathf.Pow(1f - t, BrowserTvConfig.Current.AudioRolloffPower);
+    }
+
+    private static string GetBlockName(Vector3i blockPos)
+    {
+        try
+        {
+            World world = GameManager.Instance != null ? GameManager.Instance.World : null;
+            if (world == null)
+            {
+                return string.Empty;
+            }
+
+            BlockValue blockValue = ((WorldBase)world).GetBlock(blockPos);
+            Block block = Block.list[blockValue.type];
+            return block != null ? block.GetBlockName() : string.Empty;
+        }
+        catch
+        {
+            return string.Empty;
+        }
     }
 
     private static EntityPlayerLocal GetPrimaryLocalPlayer()

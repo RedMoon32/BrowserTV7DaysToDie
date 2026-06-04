@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 using System.Text.RegularExpressions;
@@ -15,6 +16,14 @@ public sealed class BrowserTvConfig
     public float AudioMinDistance = 2f;
     public float AudioMaxDistance = 20f;
     public float AudioRolloffPower = 1.5f;
+    public readonly Dictionary<string, float> AudioMaxDistanceByBlock = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase)
+    {
+        { "BrowserTV", 20f },
+        { "BrowserTVWall", 30f },
+        { "BrowserBigTV", 40f },
+        { "BrowserTheaterScreen", 70f },
+        { "BrowserBillboard", 70f }
+    };
 
     public static BrowserTvConfig Current { get; private set; } = new BrowserTvConfig();
 
@@ -40,8 +49,27 @@ public sealed class BrowserTvConfig
         config.AudioMinDistance = Mathf.Max(0f, config.AudioMinDistance);
         config.AudioMaxDistance = Mathf.Max(config.AudioMinDistance + 0.1f, config.AudioMaxDistance);
         config.AudioRolloffPower = Mathf.Max(0.1f, config.AudioRolloffPower);
+        ClampBlockAudioDistances(config);
         Current = config;
         Debug.Log("[BrowserTV] Config loaded. BridgePublicUrl=" + config.BridgePublicUrl + ", BridgeInternalUrl=" + config.BridgeInternalUrl + ", SpatialAudio=" + config.SpatialAudioEnabled + ", AudioMaxDistance=" + config.AudioMaxDistance);
+    }
+
+    public float GetAudioMaxDistance(string blockName)
+    {
+        if (!string.IsNullOrEmpty(blockName) && AudioMaxDistanceByBlock.TryGetValue(blockName, out float distance))
+        {
+            return distance;
+        }
+
+        return AudioMaxDistance;
+    }
+
+    private static void ClampBlockAudioDistances(BrowserTvConfig config)
+    {
+        foreach (string blockName in new List<string>(config.AudioMaxDistanceByBlock.Keys))
+        {
+            config.AudioMaxDistanceByBlock[blockName] = Mathf.Max(config.AudioMinDistance + 0.1f, config.AudioMaxDistanceByBlock[blockName]);
+        }
     }
 
     private static string TrimSlash(string value)
