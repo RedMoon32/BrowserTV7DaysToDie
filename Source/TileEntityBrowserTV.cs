@@ -38,9 +38,14 @@ public class TileEntityBrowserTV : TileEntityPowered
     public override bool Activate(bool activated)
     {
         bool result = base.Activate(activated);
+        Vector3i worldPos = ((TileEntity)this).ToWorldPos();
+        if (!IsPowered && !SingletonMonoBehaviour<ConnectionManager>.Instance.IsClient)
+        {
+            BrowserTvServerStateService.PowerOff(worldPos);
+        }
+
         if (!GameManager.IsDedicatedServer)
         {
-            Vector3i worldPos = ((TileEntity)this).ToWorldPos();
             BrowserTvState current = BrowserTvClientStateService.Current;
             if (!current.IsSameTv(worldPos) || current.Power != BrowserTvPowerState.On || string.IsNullOrEmpty(current.StreamUrl))
             {
