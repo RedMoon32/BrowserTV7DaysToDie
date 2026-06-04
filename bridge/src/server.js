@@ -112,6 +112,7 @@ function createSession(tvId, currentUrl) {
     processes: [],
     chromium: null,
     pulse: null,
+    stream: null,
   };
 }
 
@@ -245,6 +246,50 @@ function serveMedia(_req, res, url) {
 }
 
 function serveTransportStream(req, res, session) {
+  const stream = ensureTransportStream(session);
+
+  res.writeHead(200, {
+    "content-type": "video/mp2t",
+    "cache-control": "no-cache",
+  });
+
+  const client = {
+    res,
+    closed: false,
+  };
+  stream.clients.add(client);
+  console.log(JSON.stringify({
+    event: "stream_client_join",
+    sessionId: session.sessionId,
+    clients: stream.clients.size,
+  }));
+
+  const stop = () => removeStreamClient(session, stream, client);
+  req.on("close", stop);
+  res.on("close", stop);
+}
+
+function ensureTransportStream(session) {
+  if (session.stream?.ffmpeg && !session.stream.ffmpeg.killed) {
+    if (session.stream.idleTimer) {
+      clearTimeout(session.stream.idleTimer);
+      session.stream.idleTimer = null;
+    }
+
+    return session.stream;
+  }
+
+  const stream = {
+    ffmpeg: null,
+    clients: new Set(),
+    statsTimer: null,
+    idleTimer: null,
+    totalBytes: 0,
+    intervalBytes: 0,
+    stopping: false,
+  };
+  session.stream = stream;
+
   const ffmpeg = spawn("ffmpeg", [
     "-hide_banner",
     "-loglevel", "warning",
@@ -285,6 +330,7 @@ function serveTransportStream(req, res, session) {
     env: makePulseEnv(session),
     stdio: ["ignore", "pipe", "pipe"],
   });
+  stream.ffmpeg = ffmpeg;
 
   console.log(JSON.stringify({
     event: "stream_start",
@@ -298,44 +344,114 @@ function serveTransportStream(req, res, session) {
   ffmpeg.stderr.on("data", data => logProcess(session, "ffmpeg-stream", data));
   ffmpeg.on("exit", (code, signal) => {
     console.log(JSON.stringify({ event: "stream_exit", sessionId: session.sessionId, code, signal }));
+    closeStreamClients(stream);
+    clearTimeout(stream.idleTimer);
+    if (session.stream === stream) {
+      clearInterval(stream.statsTimer);
+      session.stream = null;
+    }
   });
   ffmpeg.on("error", error => {
     console.error(JSON.stringify({ event: "stream_error", sessionId: session.sessionId, error: String(error?.message || error) }));
+    closeStreamClients(stream);
   });
 
-  res.writeHead(200, {
-    "content-type": "video/mp2t",
-    "cache-control": "no-cache",
-  });
-
-  let totalBytes = 0;
-  let intervalBytes = 0;
-  const statsTimer = setInterval(() => {
+  stream.statsTimer = setInterval(() => {
     console.log(JSON.stringify({
       event: "stream_bytes",
       sessionId: session.sessionId,
-      intervalBytes,
-      totalBytes,
+      clients: stream.clients.size,
+      intervalBytes: stream.intervalBytes,
+      totalBytes: stream.totalBytes,
     }));
-    intervalBytes = 0;
+    stream.intervalBytes = 0;
   }, 2000);
 
   ffmpeg.stdout.on("data", chunk => {
-    totalBytes += chunk.length;
-    intervalBytes += chunk.length;
-  });
-  ffmpeg.stdout.pipe(res);
+    stream.totalBytes += chunk.length;
+    stream.intervalBytes += chunk.length;
+    for (const client of stream.clients) {
+      if (client.closed || client.res.destroyed || client.res.writableEnded) {
+        removeStreamClient(session, stream, client);
+        continue;
+      }
 
-  const stop = () => {
-    clearInterval(statsTimer);
-    killProcess(ffmpeg);
-  };
-  req.on("close", stop);
-  res.on("close", stop);
+      if (client.res.writableLength > 4 * 1024 * 1024) {
+        console.warn(JSON.stringify({
+          event: "stream_client_drop_slow",
+          sessionId: session.sessionId,
+          bufferedBytes: client.res.writableLength,
+        }));
+        client.res.destroy();
+        removeStreamClient(session, stream, client);
+        continue;
+      }
+
+      client.res.write(chunk);
+    }
+  });
+
+  return stream;
+}
+
+function removeStreamClient(session, stream, client) {
+  if (client.closed) {
+    return;
+  }
+
+  client.closed = true;
+  stream.clients.delete(client);
+  console.log(JSON.stringify({
+    event: "stream_client_leave",
+    sessionId: session.sessionId,
+    clients: stream.clients.size,
+  }));
+
+  if (stream.clients.size === 0 && !stream.idleTimer && !stream.stopping) {
+    stream.idleTimer = setTimeout(() => {
+      if (stream.clients.size === 0 && session.stream === stream) {
+        stopTransportStream(session, stream, "idle");
+      }
+    }, 5000);
+  }
+}
+
+function stopTransportStream(session, stream = session.stream, reason = "stop") {
+  if (!stream || stream.stopping) {
+    return;
+  }
+
+  stream.stopping = true;
+  clearTimeout(stream.idleTimer);
+  clearInterval(stream.statsTimer);
+  closeStreamClients(stream);
+  if (stream.ffmpeg) {
+    killProcess(stream.ffmpeg);
+  }
+
+  if (session.stream === stream) {
+    session.stream = null;
+  }
+
+  console.log(JSON.stringify({ event: "stream_stop", sessionId: session.sessionId, reason }));
+}
+
+function closeStreamClients(stream) {
+  for (const client of stream.clients) {
+    client.closed = true;
+    try {
+      if (!client.res.destroyed && !client.res.writableEnded) {
+        client.res.end();
+      }
+    } catch {}
+  }
+
+  stream.clients.clear();
 }
 
 function closeSession(session) {
   if (!session) return;
+  stopTransportStream(session, session.stream, "session_close");
   for (const child of session.processes.slice().reverse()) {
     killProcess(child);
   }
