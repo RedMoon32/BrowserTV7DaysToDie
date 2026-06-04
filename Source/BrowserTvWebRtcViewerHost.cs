@@ -64,6 +64,8 @@ public class BrowserTvWebRtcViewerHost : MonoBehaviour
         if (viewer != null)
         {
             viewer.StopViewing();
+            Destroy(viewer);
+            viewer = null;
         }
     }
 }

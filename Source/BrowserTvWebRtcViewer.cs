@@ -77,6 +77,10 @@ public class BrowserTvWebRtcViewer : MonoBehaviour
             state = nextState.Clone();
             controller = screenController;
             controller.SetVolume(state.Volume);
+            if (texture != null)
+            {
+                controller.SetExternalTexture(texture);
+            }
             if (mediaPlayer != null)
             {
                 ApplySpatialAudioVolume(true);
@@ -210,6 +214,11 @@ public class BrowserTvWebRtcViewer : MonoBehaviour
 
     private void Update()
     {
+        if (state == null || mediaPlayer == null)
+        {
+            return;
+        }
+
         ApplySpatialAudioVolume(false);
 
         if (!frameReady || texture == null)

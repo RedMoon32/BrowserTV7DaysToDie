@@ -27,7 +27,12 @@ public class TileEntityBrowserTV : TileEntityPowered
         }
 
         initializer.Initialize(this);
-        BrowserTvManager.Instance.SetScreenState(((TileEntity)this).ToWorldPos(), IsPowered ? BrowserTvScreenState.Standby : BrowserTvScreenState.Off);
+        Vector3i worldPos = ((TileEntity)this).ToWorldPos();
+        BrowserTvState current = BrowserTvClientStateService.Current;
+        if (!current.IsSameTv(worldPos) || current.Power != BrowserTvPowerState.On || string.IsNullOrEmpty(current.StreamUrl))
+        {
+            BrowserTvManager.Instance.SetScreenState(worldPos, IsPowered ? BrowserTvScreenState.Standby : BrowserTvScreenState.Off);
+        }
     }
 
     public override bool Activate(bool activated)
@@ -35,7 +40,12 @@ public class TileEntityBrowserTV : TileEntityPowered
         bool result = base.Activate(activated);
         if (!GameManager.IsDedicatedServer)
         {
-            BrowserTvManager.Instance.SetScreenState(((TileEntity)this).ToWorldPos(), IsPowered ? BrowserTvScreenState.Standby : BrowserTvScreenState.Off);
+            Vector3i worldPos = ((TileEntity)this).ToWorldPos();
+            BrowserTvState current = BrowserTvClientStateService.Current;
+            if (!current.IsSameTv(worldPos) || current.Power != BrowserTvPowerState.On || string.IsNullOrEmpty(current.StreamUrl))
+            {
+                BrowserTvManager.Instance.SetScreenState(worldPos, IsPowered ? BrowserTvScreenState.Standby : BrowserTvScreenState.Off);
+            }
         }
 
         return result;
