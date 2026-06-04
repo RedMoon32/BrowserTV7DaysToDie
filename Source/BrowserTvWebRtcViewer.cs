@@ -15,6 +15,7 @@ public class BrowserTvWebRtcViewer : MonoBehaviour
     private const float FrameIntervalSeconds = 1f / TargetFps;
     private const int FrameBufferCount = 3;
     private const int NoFrame = -1;
+    private const float SpatialAudioUpdateIntervalSeconds = 0.15f;
 
     private static bool vlcInitialized;
 
@@ -53,6 +54,8 @@ public class BrowserTvWebRtcViewer : MonoBehaviour
     private byte lastSampleA;
     private byte lastSampleB;
     private byte lastSampleC;
+    private float nextSpatialAudioUpdateTime;
+    private int lastAppliedVlcVolume = -1;
 
     private MediaPlayer.LibVLCVideoLockCb lockCallback;
     private MediaPlayer.LibVLCVideoUnlockCb unlockCallback;
@@ -76,7 +79,7 @@ public class BrowserTvWebRtcViewer : MonoBehaviour
             controller.SetVolume(state.Volume);
             if (mediaPlayer != null)
             {
-                mediaPlayer.Volume = VolumeToVlc(state.Volume);
+                ApplySpatialAudioVolume(true);
             }
             return;
         }
@@ -114,7 +117,7 @@ public class BrowserTvWebRtcViewer : MonoBehaviour
             mediaPlayer = new MediaPlayer(libVlc);
             mediaPlayer.SetVideoFormat("RV32", Width, Height, Pitch);
             mediaPlayer.SetVideoCallbacks(lockCallback, unlockCallback, displayCallback);
-            mediaPlayer.Volume = VolumeToVlc(state.Volume);
+            ApplySpatialAudioVolume(true);
             mediaPlayer.EncounteredError += (_, __) =>
             {
                 Debug.LogError("[BrowserTV] LibVLC media player encountered an error.");
@@ -187,6 +190,8 @@ public class BrowserTvWebRtcViewer : MonoBehaviour
         firstFrameDisplayed = false;
         nextFrameUploadTime = 0f;
         nextCallbackDiagnosticsTime = 0f;
+        nextSpatialAudioUpdateTime = 0f;
+        lastAppliedVlcVolume = -1;
         lastLoggedLockFrameCount = 0;
         lastLoggedUnlockFrameCount = 0;
         lastLoggedDisplayFrameCount = 0;
@@ -205,6 +210,8 @@ public class BrowserTvWebRtcViewer : MonoBehaviour
 
     private void Update()
     {
+        ApplySpatialAudioVolume(false);
+
         if (!frameReady || texture == null)
         {
             LogCallbackDiagnosticsIfNeeded(true);
@@ -484,6 +491,72 @@ public class BrowserTvWebRtcViewer : MonoBehaviour
     private static int VolumeToVlc(float volume)
     {
         return Mathf.Clamp(Mathf.RoundToInt(volume * 100f), 0, 100);
+    }
+
+    private void ApplySpatialAudioVolume(bool force)
+    {
+        if (mediaPlayer == null || state == null)
+        {
+            return;
+        }
+
+        if (!force && Time.unscaledTime < nextSpatialAudioUpdateTime)
+        {
+            return;
+        }
+
+        nextSpatialAudioUpdateTime = Time.unscaledTime + SpatialAudioUpdateIntervalSeconds;
+        float effectiveVolume = Mathf.Clamp01(state.Volume);
+        if (BrowserTvConfig.Current.SpatialAudioEnabled)
+        {
+            effectiveVolume *= GetSpatialAudioAttenuation(state.BlockPos);
+        }
+
+        int vlcVolume = VolumeToVlc(effectiveVolume);
+        if (force || vlcVolume != lastAppliedVlcVolume)
+        {
+            mediaPlayer.Volume = vlcVolume;
+            lastAppliedVlcVolume = vlcVolume;
+        }
+    }
+
+    private static float GetSpatialAudioAttenuation(Vector3i blockPos)
+    {
+        EntityPlayerLocal player = GetPrimaryLocalPlayer();
+        if (player == null)
+        {
+            return 0f;
+        }
+
+        Vector3 tvPosition = new Vector3(blockPos.x + 0.5f, blockPos.y + 0.5f, blockPos.z + 0.5f);
+        float distance = Vector3.Distance(((EntityAlive)player).position, tvPosition);
+        float minDistance = BrowserTvConfig.Current.AudioMinDistance;
+        float maxDistance = BrowserTvConfig.Current.AudioMaxDistance;
+        if (distance <= minDistance)
+        {
+            return 1f;
+        }
+
+        if (distance >= maxDistance)
+        {
+            return 0f;
+        }
+
+        float t = Mathf.InverseLerp(minDistance, maxDistance, distance);
+        return Mathf.Pow(1f - t, BrowserTvConfig.Current.AudioRolloffPower);
+    }
+
+    private static EntityPlayerLocal GetPrimaryLocalPlayer()
+    {
+        try
+        {
+            World world = GameManager.Instance != null ? GameManager.Instance.World : null;
+            return world != null ? ((WorldBase)world).GetPrimaryPlayer() : null;
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     private static uint ComputeFrameHash(byte[] bytes)
