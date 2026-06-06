@@ -1,7 +1,0 @@
-<config>
-<append xpath="//ruleset[@name='default']">
-<window_group name="windowYouTubeURLInput" defaultSelected="content">
-	<window name="windowYouTubeURLInput" />
-</window_group>
-</append>
-</config>

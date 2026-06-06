@@ -1,9 +1,0 @@
-yt_dlp_get_pot-0.3.0.dist-info/INSTALLER,sha256=zuuue4knoyJ-UwPPXg8fezS7VCrXJQrAP7zeNuwvFQg,4
-yt_dlp_get_pot-0.3.0.dist-info/METADATA,sha256=enmNPNPCVUG4P5Ek4AQLmajZFJD9UlLNcteNCIZ0ym8,6587
-yt_dlp_get_pot-0.3.0.dist-info/RECORD,,
-yt_dlp_get_pot-0.3.0.dist-info/WHEEL,sha256=qtCwoSJWgHk21S1Kb4ihdzI2rlJ1ZKaIurTj_ngOhyQ,87
-yt_dlp_get_pot-0.3.0.dist-info/licenses/LICENSE,sha256=fhLl30uuEsshWBuhV87SDhmGoFCN0Q0Oikq5pM-U6Fw,1211
-yt_dlp_plugins/extractor/__pycache__/getpot.cpython-313.pyc,,
-yt_dlp_plugins/extractor/__pycache__/getpot_client.cpython-313.pyc,,
-yt_dlp_plugins/extractor/getpot.py,sha256=Vwd5oV5rYsXJuu3AmZIVjALcIThc7eUU7n81br78RiA,7799
-yt_dlp_plugins/extractor/getpot_client.py,sha256=0TUn_lbzDhvaDXZPgrTbZePBLNEXaEZW5twLUqrhVeU,2652

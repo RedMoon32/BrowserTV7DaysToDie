@@ -1,0 +1,24 @@
+# Build output
+bin/
+obj/
+Source/bin/
+Source/obj/
+*.pdb
+
+# Local diagnostics and temporary stream captures
+.cache/
+tmp/
+tmp-session.json
+*.ts
+
+# Obsolete reference mod copied during development
+YoutubeTVMod/
+neko/
+
+# Local editor and OS files
+.vs/
+.vscode/
+*.user
+*.suo
+Thumbs.db
+Desktop.ini

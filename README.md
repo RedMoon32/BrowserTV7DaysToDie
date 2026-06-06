@@ -1,0 +1,108 @@
+# BrowserTV
+
+BrowserTV is a 7 Days to Die mod that adds powered TV blocks capable of showing a remote browser page in-game. The game mod sends only control and state messages through 7DTD NetPackages; browser rendering and media encoding are handled by a separate Docker bridge.
+
+## What It Includes
+
+- Browser TV blocks and recipes for 7 Days to Die.
+- A Unity/LibVLC client viewer that plays the bridge stream on the TV mesh.
+- A Docker bridge that runs Chromium in Xvfb, captures video/audio with ffmpeg, and serves an MPEG-TS stream.
+- One ffmpeg encoder per active browser session, with multiple viewers fanned out from the same stream.
+
+## Requirements
+
+- 7 Days to Die with mod loading enabled.
+- Windows client for the current LibVLC bundle.
+- Docker Desktop or Docker Engine for the bridge.
+- Network access from clients to the bridge public URL.
+
+The current package is designed for a small trusted server. It is not hardened for public untrusted players.
+
+## Installation
+
+1. Put this folder in:
+
+   ```text
+   7 Days To Die/Mods/BrowserTV
+   ```
+
+2. Start the bridge from the mod folder:
+
+   ```powershell
+   docker compose up -d --build browser-tv-bridge
+   ```
+
+3. Check the bridge:
+
+   ```powershell
+   Invoke-RestMethod http://127.0.0.1:8787/health
+   ```
+
+4. Start the game/server and place a BrowserTV block.
+
+## Configuration
+
+Game-side settings are in `Config/browser-tv.json`:
+
+```json
+{
+  "enableBrowserTv": true,
+  "bridgeInternalUrl": "http://127.0.0.1:8787",
+  "bridgePublicUrl": "http://127.0.0.1:8787",
+  "serverSecret": "change-me-browser-tv-secret",
+  "defaultUrl": "https://www.google.com",
+  "spatialAudioEnabled": true,
+  "audioMinDistance": 2.0,
+  "audioMaxDistance": 20.0,
+  "audioRolloffPower": 1.5
+}
+```
+
+`bridgeInternalUrl` is used by the game server to control the bridge. `bridgePublicUrl` is sent to clients and must be reachable by every player who should see the TV stream. On a dedicated server, this usually needs to be the server LAN IP or public hostname, not `127.0.0.1`.
+
+The Docker bridge uses matching environment variables in `docker-compose.yml`, especially:
+
+- `BROWSER_TV_SERVER_SECRET`
+- `BROWSER_TV_PUBLIC_URL`
+- `BROWSER_TV_DEFAULT_URL`
+- `BROWSER_TV_WIDTH`
+- `BROWSER_TV_HEIGHT`
+- `BROWSER_TV_FPS`
+
+For a real server, change the default secret in both `Config/browser-tv.json` and `docker-compose.yml`.
+
+## Usage
+
+Power the TV block, interact with it, and enter a URL. The bridge opens the URL in Chromium and streams the captured browser window back to clients through LibVLC.
+
+Only one BrowserTV session is currently intended to be active at a time. Multiple players can watch the same active TV without spawning multiple ffmpeg encoders.
+
+## Current Limitations
+
+- Current native LibVLC bundle is Windows x64 only.
+- TV playback state is runtime state; it is not fully restored after server restart.
+- The bridge is intended for trusted use. Do not expose it publicly without changing the secret and adding network restrictions.
+- URL validation is minimal. Trusted players are assumed.
+- The current architecture is best suited for a small private group.
+
+## Development
+
+Build the C# mod:
+
+```powershell
+dotnet build Source/BrowserTV.csproj -v:minimal
+```
+
+The project writes `BrowserTV.dll` to the mod root. Generated `bin`/`obj` folders should not be committed.
+
+Useful bridge commands:
+
+```powershell
+docker compose up -d --build browser-tv-bridge
+docker logs -f browser-tv-bridge
+docker compose down
+```
+
+## Repository Notes
+
+The old `YoutubeTVMod` reference copy and diagnostic captures are intentionally not part of this repository. Keep the repo focused on BrowserTV source, game assets, runtime dependencies, and bridge code.
