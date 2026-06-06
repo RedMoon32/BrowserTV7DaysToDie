@@ -166,7 +166,6 @@ function restartChromium(session) {
     "--disable-sync",
     "--disable-dev-shm-usage",
     "--disable-gpu",
-    "--disable-software-rasterizer",
     "--disable-background-networking",
     "--autoplay-policy=no-user-gesture-required",
     "--lang=ru-RU",

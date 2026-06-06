@@ -45,12 +45,17 @@ public class BrowserTvWebRtcViewer : MonoBehaviour
     private int lastLoggedUnlockFrameCount;
     private int lastLoggedDisplayFrameCount;
     private int lastLoggedUploadedFrameCount;
+    private int lastLoggedUniqueUploadedFrameCount;
+    private int lastLoggedDuplicateUploadedFrameCount;
     private int lockFrameCount;
     private int unlockFrameCount;
     private int displayFrameCount;
     private int uploadedFrameCount;
+    private int uniqueUploadedFrameCount;
+    private int duplicateUploadedFrameCount;
     private int lastUploadedFrameIndex = NoFrame;
     private uint lastUploadedFrameHash;
+    private bool hasLastUploadedFrameHash;
     private byte lastSampleA;
     private byte lastSampleB;
     private byte lastSampleC;
@@ -200,12 +205,17 @@ public class BrowserTvWebRtcViewer : MonoBehaviour
         lastLoggedUnlockFrameCount = 0;
         lastLoggedDisplayFrameCount = 0;
         lastLoggedUploadedFrameCount = 0;
+        lastLoggedUniqueUploadedFrameCount = 0;
+        lastLoggedDuplicateUploadedFrameCount = 0;
         lockFrameCount = 0;
         unlockFrameCount = 0;
         displayFrameCount = 0;
         uploadedFrameCount = 0;
+        uniqueUploadedFrameCount = 0;
+        duplicateUploadedFrameCount = 0;
         lastUploadedFrameIndex = NoFrame;
         lastUploadedFrameHash = 0;
+        hasLastUploadedFrameHash = false;
         lastSampleA = 0;
         lastSampleB = 0;
         lastSampleC = 0;
@@ -472,7 +482,18 @@ public class BrowserTvWebRtcViewer : MonoBehaviour
 
         Marshal.Copy(framePointers[frameIndex], uploadBuffer, 0, uploadBuffer.Length);
         lastUploadedFrameIndex = frameIndex;
-        lastUploadedFrameHash = ComputeFrameHash(uploadBuffer);
+        uint frameHash = ComputeFrameHash(uploadBuffer);
+        if (hasLastUploadedFrameHash && frameHash == lastUploadedFrameHash)
+        {
+            duplicateUploadedFrameCount++;
+        }
+        else
+        {
+            uniqueUploadedFrameCount++;
+        }
+
+        hasLastUploadedFrameHash = true;
+        lastUploadedFrameHash = frameHash;
         lastSampleA = uploadBuffer[BytesPerPixel * ((Height / 4) * Width + (Width / 4))];
         lastSampleB = uploadBuffer[BytesPerPixel * ((Height / 2) * Width + (Width / 2))];
         lastSampleC = uploadBuffer[BytesPerPixel * (((Height * 3) / 4) * Width + ((Width * 3) / 4))];
@@ -621,6 +642,8 @@ public class BrowserTvWebRtcViewer : MonoBehaviour
         int currentUnlock = unlockFrameCount;
         int currentDisplay = displayFrameCount;
         int currentUploaded = uploadedFrameCount;
+        int currentUniqueUploaded = uniqueUploadedFrameCount;
+        int currentDuplicateUploaded = duplicateUploadedFrameCount;
         string prefix = firstFrameDisplayed
             ? "[BrowserTV] LibVLC video callback counters: "
             : "[BrowserTV] LibVLC video callback counters before first frame: ";
@@ -633,6 +656,10 @@ public class BrowserTvWebRtcViewer : MonoBehaviour
             displayFrameCount +
             " uploaded=" +
             uploadedFrameCount +
+            " uniqueUploaded=" +
+            uniqueUploadedFrameCount +
+            " duplicateUploaded=" +
+            duplicateUploadedFrameCount +
             " deltaLock=" +
             (currentLock - lastLoggedLockFrameCount) +
             " deltaUnlock=" +
@@ -641,6 +668,10 @@ public class BrowserTvWebRtcViewer : MonoBehaviour
             (currentDisplay - lastLoggedDisplayFrameCount) +
             " deltaUploaded=" +
             (currentUploaded - lastLoggedUploadedFrameCount) +
+            " deltaUniqueUploaded=" +
+            (currentUniqueUploaded - lastLoggedUniqueUploadedFrameCount) +
+            " deltaDuplicateUploaded=" +
+            (currentDuplicateUploaded - lastLoggedDuplicateUploadedFrameCount) +
             " frameIndex=" +
             lastUploadedFrameIndex +
             " frameHash=0x" +
@@ -656,6 +687,8 @@ public class BrowserTvWebRtcViewer : MonoBehaviour
         lastLoggedUnlockFrameCount = currentUnlock;
         lastLoggedDisplayFrameCount = currentDisplay;
         lastLoggedUploadedFrameCount = currentUploaded;
+        lastLoggedUniqueUploadedFrameCount = currentUniqueUploaded;
+        lastLoggedDuplicateUploadedFrameCount = currentDuplicateUploaded;
     }
 
     private void OnDestroy()
