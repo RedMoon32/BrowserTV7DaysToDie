@@ -5,17 +5,12 @@
         <sprite depth="0" name="background" sprite="menu_empty_background" color="[black]" type="sliced" fillcenter="true" />
         <label depth="1" name="lblTitle" pos="0,165" width="620" height="38" text="Browser TV" font_size="32" justify="center" />
 
-        <rect depth="1" name="panelMain" pos="0,0" width="620" height="280">
-          <simplebutton name="btnBrowserTvNavigate" depth="2" pos="160,75" width="300" height="52" font_size="26" caption="Navigate to URL" />
-          <simplebutton name="btnBrowserTvVolume" depth="2" pos="160,5" width="300" height="52" font_size="26" caption="Volume" />
-          <simplebutton name="btnBrowserTvClose" depth="2" pos="230,-90" width="160" height="40" font_size="22" caption="Close" />
-        </rect>
-
-        <rect depth="1" name="panelUrl" pos="0,0" width="620" height="280" visible="false">
-          <simplebutton name="btnBrowserTvUrlBack" depth="2" pos="20,120" width="100" height="36" font_size="20" caption="Back" />
-          <label depth="2" name="lblUrlTitle" pos="120,122" width="380" height="30" text="Browser URL" font_size="26" justify="center" />
-          <textfield depth="2" name="txtBrowserTvUrl" pos="20,45" width="580" height="42" character_limit="512" focus_on_open="false" clear_on_open="false" open_vk_on_open="false" />
-          <simplebutton name="btnBrowserTvUrlSubmit" depth="2" pos="230,-30" width="160" height="42" font_size="22" caption="Open" />
+        <rect depth="1" name="panelUrl" pos="0,0" width="620" height="280">
+          <label depth="2" name="lblUrlTitle" pos="0,110" width="620" height="30" text="Browser URL" font_size="26" justify="center" />
+          <textfield depth="2" name="txtBrowserTvUrl" pos="20,60" width="580" height="42" character_limit="512" focus_on_open="true" clear_on_open="false" open_vk_on_open="false" />
+          <simplebutton name="btnBrowserTvUrlSubmit" depth="2" pos="230,-5" width="160" height="42" font_size="22" caption="Open" />
+          <simplebutton name="btnBrowserTvVolume" depth="2" pos="160,-70" width="300" height="46" font_size="24" caption="Volume" />
+          <simplebutton name="btnBrowserTvClose" depth="2" pos="230,-135" width="160" height="40" font_size="22" caption="Close" />
         </rect>
 
         <rect depth="1" name="panelVolume" pos="0,0" width="620" height="280" visible="false">

@@ -1,6 +1,6 @@
 <config>
   <append xpath="//ruleset[@name='default']">
-    <window_group name="windowBrowserTvControl" defaultSelected="btnBrowserTvNavigate">
+    <window_group name="windowBrowserTvControl" defaultSelected="txtBrowserTvUrl">
       <window name="windowBrowserTvControl" />
     </window_group>
     <window_group name="windowBrowserTvUrlInput" defaultSelected="content">

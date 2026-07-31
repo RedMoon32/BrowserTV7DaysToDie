@@ -9,7 +9,6 @@ public class XUiC_BrowserTvControlWindow : XUiController
 {
     private readonly HashSet<string> registeredButtonIds = new HashSet<string>();
 
-    private XUiController panelMain;
     private XUiController panelUrl;
     private XUiController panelVolume;
     private XUiC_TextInput urlInput;
@@ -34,7 +33,7 @@ public class XUiC_BrowserTvControlWindow : XUiController
         }
 
         ConfigureVolumeSlider();
-        ShowMainPanel();
+        ShowUrlPanel();
     }
 
     public override void OnClose()
@@ -46,7 +45,6 @@ public class XUiC_BrowserTvControlWindow : XUiController
 
     private void BindControls()
     {
-        panelMain = GetChildById("panelMain");
         panelUrl = GetChildById("panelUrl");
         panelVolume = GetChildById("panelVolume");
         urlInput = GetChildById("txtBrowserTvUrl") as XUiC_TextInput;
@@ -75,12 +73,10 @@ public class XUiC_BrowserTvControlWindow : XUiController
 
     private void RegisterHandlers()
     {
-        RegisterButton("btnBrowserTvNavigate", ShowUrlPanel);
         RegisterButton("btnBrowserTvVolume", ShowVolumePanel);
         RegisterButton("btnBrowserTvClose", CloseWindow);
-        RegisterButton("btnBrowserTvUrlBack", ShowMainPanel);
         RegisterButton("btnBrowserTvUrlSubmit", SubmitUrl);
-        RegisterButton("btnBrowserTvVolumeBack", ShowMainPanel);
+        RegisterButton("btnBrowserTvVolumeBack", ShowUrlPanel);
 
         if (!urlInputHandlersRegistered && urlInput != null)
         {
@@ -132,17 +128,8 @@ public class XUiC_BrowserTvControlWindow : XUiController
         registeredButtonIds.Add(id);
     }
 
-    private void ShowMainPanel()
-    {
-        SetVisible(panelMain, true);
-        SetVisible(panelUrl, false);
-        SetVisible(panelVolume, false);
-        SetSelected(urlInput, false);
-    }
-
     private void ShowUrlPanel()
     {
-        SetVisible(panelMain, false);
         SetVisible(panelUrl, true);
         SetVisible(panelVolume, false);
         if (urlInput != null)
@@ -154,7 +141,6 @@ public class XUiC_BrowserTvControlWindow : XUiController
 
     private void ShowVolumePanel()
     {
-        SetVisible(panelMain, false);
         SetVisible(panelUrl, false);
         SetVisible(panelVolume, true);
         SetSelected(urlInput, false);
@@ -180,7 +166,7 @@ public class XUiC_BrowserTvControlWindow : XUiController
 
     private void UrlInput_OnInputAbortedHandler(XUiController sender)
     {
-        ShowMainPanel();
+        CloseWindow();
     }
 
     private void VolumeSlider_OnValueChanged(XUiC_Slider slider)
