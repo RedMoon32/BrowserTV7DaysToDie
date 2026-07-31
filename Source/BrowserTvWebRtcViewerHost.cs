@@ -37,6 +37,11 @@ public class BrowserTvWebRtcViewerHost : MonoBehaviour
         applyLoop = StartCoroutine(ApplyStateDelayed(state.Clone()));
     }
 
+    public void RefreshLocalVolume()
+    {
+        viewer?.RefreshLocalVolume();
+    }
+
     private IEnumerator ApplyStateDelayed(BrowserTvState state)
     {
         yield return null;

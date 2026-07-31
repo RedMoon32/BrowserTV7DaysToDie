@@ -81,7 +81,6 @@ public class BrowserTvWebRtcViewer : MonoBehaviour
         {
             state = nextState.Clone();
             controller = screenController;
-            controller.SetVolume(state.Volume);
             if (texture != null)
             {
                 controller.SetExternalTexture(texture);
@@ -97,7 +96,6 @@ public class BrowserTvWebRtcViewer : MonoBehaviour
 
         state = nextState.Clone();
         controller = screenController;
-        controller.SetVolume(state.Volume);
         controller.SetState(BrowserTvScreenState.Standby);
 
         if (string.IsNullOrEmpty(state.StreamUrl))
@@ -523,6 +521,12 @@ public class BrowserTvWebRtcViewer : MonoBehaviour
         return Mathf.Clamp(Mathf.RoundToInt(volume * 100f), 0, 100);
     }
 
+    public void RefreshLocalVolume()
+    {
+        nextSpatialAudioUpdateTime = 0f;
+        ApplySpatialAudioVolume(true);
+    }
+
     private void ApplySpatialAudioVolume(bool force)
     {
         if (mediaPlayer == null || state == null)
@@ -536,7 +540,7 @@ public class BrowserTvWebRtcViewer : MonoBehaviour
         }
 
         nextSpatialAudioUpdateTime = Time.unscaledTime + SpatialAudioUpdateIntervalSeconds;
-        float effectiveVolume = Mathf.Clamp01(state.Volume);
+        float effectiveVolume = BrowserTvLocalAudioSettings.Volume;
         if (BrowserTvConfig.Current.SpatialAudioEnabled)
         {
             effectiveVolume *= GetSpatialAudioAttenuation(state.BlockPos);

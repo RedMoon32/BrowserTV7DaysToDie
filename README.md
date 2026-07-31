@@ -73,7 +73,11 @@ For a real server, change the default secret in both `Config/browser-tv.json` an
 
 ## Usage
 
-Power the TV block, interact with it, and enter a URL. The bridge opens the URL in Chromium and streams the captured browser window back to clients through LibVLC.
+Power the TV block and interact with it to open the Browser TV control menu. The menu can navigate the shared browser session to a URL and adjust the local player's base volume.
+
+Volume is stored locally for each client and is not synchronized through the server. The selected percentage is the volume heard while standing near the TV; distance attenuation is still applied on top of it according to the TV block type. The default local volume is 100%.
+
+The bridge opens the selected URL in Chromium and streams the captured browser window back to clients through LibVLC.
 
 Only one BrowserTV session is currently intended to be active at a time. Multiple players can watch the same active TV without spawning multiple ffmpeg encoders.
 

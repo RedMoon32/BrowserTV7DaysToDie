@@ -71,7 +71,7 @@ public class BlockBrowserTV : BlockPowered
 
         if (commandName == "edit" || string.IsNullOrEmpty(commandName))
         {
-            return OpenUrlInput(world, cIdx, blockPos, tileEntity, player);
+            return OpenControlMenu(world, cIdx, blockPos, tileEntity, player);
         }
 
         BrowserTvState current = BrowserTvClientStateService.Current;
@@ -94,14 +94,15 @@ public class BlockBrowserTV : BlockPowered
         return true;
     }
 
-    private static bool OpenUrlInput(WorldBase world, int cIdx, Vector3i blockPos, TileEntityBrowserTV tileEntity, EntityPlayerLocal player)
+    private static bool OpenControlMenu(WorldBase world, int cIdx, Vector3i blockPos, TileEntityBrowserTV tileEntity, EntityPlayerLocal player)
     {
         try
         {
             BrowserTvState current = BrowserTvClientStateService.Current;
-            XUiC_BrowserTvUrlInputWindow.BlockPos = blockPos;
-            XUiC_BrowserTvUrlInputWindow.CurrentUrl = current.IsSameTv(blockPos) ? current.CurrentUrl : BrowserTvConfig.Current.DefaultUrl;
-            XUiC_BrowserTvUrlInputWindow.OnUrlEntered = url =>
+            XUiC_BrowserTvControlWindow.BlockPos = blockPos;
+            XUiC_BrowserTvControlWindow.CurrentUrl = current.IsSameTv(blockPos) ? current.CurrentUrl : BrowserTvConfig.Current.DefaultUrl;
+            XUiC_BrowserTvControlWindow.Player = player;
+            XUiC_BrowserTvControlWindow.OnUrlEntered = url =>
             {
                 BrowserTvState latest = BrowserTvClientStateService.Current;
                 BrowserTvCommandType command = latest.Power == BrowserTvPowerState.Off || !latest.IsSameTv(blockPos)
@@ -128,22 +129,21 @@ public class BlockBrowserTV : BlockPowered
             };
 
             XUi xui = player.PlayerUI.xui;
-            XUiV_Window window = xui.GetWindow("windowBrowserTvUrlInput");
+            XUiV_Window window = xui.GetWindow("windowBrowserTvControl");
             if (window == null || ((XUiView)window).Controller == null)
             {
-                Debug.LogWarning("[BrowserTV] URL input window is not available; falling back to default URL.");
-                int entityId = ((Entity)player).entityId;
-                SendCommand(BrowserTvCommandType.PowerOn, blockPos, BrowserTvConfig.Current.DefaultUrl, entityId);
+                Debug.LogWarning("[BrowserTV] Control window is not available.");
+                GameManager.ShowTooltip(player, "Browser TV menu is not available", string.Empty, "ui_denied", null, false, false, 0f);
                 return true;
             }
 
-            player.PlayerUI.windowManager.Open("windowBrowserTvUrlInput", true, false, true);
+            player.PlayerUI.windowManager.Open("windowBrowserTvControl", true, false, true);
             return true;
         }
         catch (Exception ex)
         {
-            Debug.LogError("[BrowserTV] Failed to open URL input: " + ex);
-            GameManager.ShowTooltip(player, "Error opening Browser TV URL input", string.Empty, "ui_denied", null, false, false, 0f);
+            Debug.LogError("[BrowserTV] Failed to open control menu: " + ex);
+            GameManager.ShowTooltip(player, "Error opening Browser TV menu", string.Empty, "ui_denied", null, false, false, 0f);
             return true;
         }
     }
