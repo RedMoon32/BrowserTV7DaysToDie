@@ -21,6 +21,16 @@ public class BrowserTvScreenController : MonoBehaviour
     private AudioSource audioSource;
 
     public TileEntityBrowserTV ParentTileEntity { get; set; }
+    public Transform OwnerTransform { get; set; }
+
+    public enum ScreenRaycastFailure
+    {
+        None,
+        RendererMissing,
+        MeshMissing,
+        MeshUvMissing,
+        MissedSurface
+    }
 
     public void Initialize(Renderer renderer)
     {
@@ -81,19 +91,28 @@ public class BrowserTvScreenController : MonoBehaviour
         }
     }
 
-    public bool TryGetBrowserCoordinates(Ray worldRay, out Vector2 coordinates, out float distance)
+    public bool TryGetBrowserCoordinates(Ray worldRay, out Vector2 coordinates, out float distance, out ScreenRaycastFailure failure)
     {
         coordinates = Vector2.zero;
         distance = 0f;
+        failure = ScreenRaycastFailure.None;
         if (screenRenderer == null)
         {
+            failure = ScreenRaycastFailure.RendererMissing;
             return false;
         }
 
         MeshFilter meshFilter = screenRenderer.GetComponent<MeshFilter>();
         Mesh mesh = meshFilter != null ? meshFilter.sharedMesh : null;
-        if (mesh == null || mesh.vertices == null || mesh.triangles == null || mesh.uv == null)
+        if (mesh == null || mesh.vertices == null || mesh.triangles == null || mesh.vertices.Length == 0 || mesh.triangles.Length == 0)
         {
+            failure = ScreenRaycastFailure.MeshMissing;
+            return false;
+        }
+
+        if (mesh.uv == null || mesh.uv.Length == 0)
+        {
+            failure = ScreenRaycastFailure.MeshUvMissing;
             return false;
         }
 
@@ -128,6 +147,7 @@ public class BrowserTvScreenController : MonoBehaviour
 
         if (nearestT == float.MaxValue)
         {
+            failure = ScreenRaycastFailure.MissedSurface;
             return false;
         }
 
@@ -136,6 +156,23 @@ public class BrowserTvScreenController : MonoBehaviour
         distance = Vector3.Distance(worldRay.origin, worldHit);
         coordinates = new Vector2(Mathf.Clamp01(nearestUv.x), Mathf.Clamp01(1f - nearestUv.y));
         return true;
+    }
+
+    public bool OwnsCollider(Collider collider)
+    {
+        if (collider == null || collider.transform == null)
+        {
+            return false;
+        }
+
+        Transform colliderTransform = collider.transform;
+        Transform ownerTransform = OwnerTransform != null ? OwnerTransform : transform;
+        return colliderTransform == transform ||
+            colliderTransform.IsChildOf(transform) ||
+            transform.IsChildOf(colliderTransform) ||
+            colliderTransform == ownerTransform ||
+            colliderTransform.IsChildOf(ownerTransform) ||
+            ownerTransform.IsChildOf(colliderTransform);
     }
 
     private static bool TryIntersectTriangle(Vector3 origin, Vector3 direction, Vector3 first, Vector3 second, Vector3 third, out float t, out float barycentricB, out float barycentricC)

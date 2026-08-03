@@ -30,6 +30,7 @@ public class BrowserTvInitializer : MonoBehaviour
             }
 
             controller.ParentTileEntity = parentTileEntity;
+            controller.OwnerTransform = transform;
             controller.Initialize(renderer);
 
             if (parentTileEntity != null)
