@@ -79,6 +79,12 @@ Volume is stored locally for each client and is not synchronized through the ser
 
 The bridge opens the selected URL in Chromium and streams the captured browser window back to clients through LibVLC.
 
+## Browser TV Remote
+
+Craft `Browser TV Remote` at a workbench. With the remote held, aim at the visible browser screen and use the primary action to send a left-click to that exact point in the browser page. The game client resolves the screen mesh UV, while the game server validates the active TV, held remote, range, and click rate before it forwards the click to the bridge.
+
+The bridge uses Chromium's local DevTools endpoint only inside its container; do not publish port `9222`.
+
 Only one BrowserTV session is currently intended to be active at a time. Multiple players can watch the same active TV without spawning multiple ffmpeg encoders.
 
 ## Current Limitations

@@ -22,6 +22,7 @@ public class BrowserTvModInit : IModApi
     {
         RegisterNetPackage<BrowserTvStatePackage>();
         RegisterNetPackage<BrowserTvCommandPackage>();
+        RegisterNetPackage<BrowserTvClickPackage>();
     }
 
     private static void RegisterNetPackage<TPackage>() where TPackage : NetPackage

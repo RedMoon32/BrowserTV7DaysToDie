@@ -80,6 +80,19 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, { ok: true, currentUrl: session.currentUrl });
     }
 
+    if (req.method === "POST" && url.pathname === "/api/server/session/click") {
+      if (!authorizeServer(req)) return json(res, 401, { error: "unauthorized" });
+      const body = await readJson(req);
+      const session = sessions.get(String(body.sessionId || ""));
+      if (!session) return json(res, 404, { error: "session not found" });
+      const x = clampCoordinate(body.x, WIDTH);
+      const y = clampCoordinate(body.y, HEIGHT);
+      if (x === null || y === null) return json(res, 400, { error: "invalid coordinates" });
+      await dispatchClick(session, x, y);
+      console.log(JSON.stringify({ event: "browser_click", sessionId: session.sessionId, x, y }));
+      return json(res, 200, { ok: true, x, y });
+    }
+
     if (req.method === "GET" && url.pathname.startsWith("/media/")) {
       return serveMedia(req, res, url);
     }
@@ -104,6 +117,7 @@ function createSession(tvId, currentUrl) {
     currentUrl,
     viewerToken,
     controllerToken: token("ctrl"),
+    debugPort: 9222,
     display: `:${DISPLAY_BASE + sessions.size + 1}`,
     dir: path.join(MEDIA_ROOT, sessionId),
     pulseRuntime: path.join(MEDIA_ROOT, sessionId, "pulse-runtime"),
@@ -167,6 +181,9 @@ function restartChromium(session) {
     "--disable-dev-shm-usage",
     "--disable-gpu",
     "--disable-background-networking",
+    `--user-data-dir=${path.join(session.dir, "chrome-profile")}`,
+    "--remote-debugging-address=127.0.0.1",
+    `--remote-debugging-port=${session.debugPort}`,
     "--autoplay-policy=no-user-gesture-required",
     "--lang=ru-RU",
     "--accept-lang=ru-RU,ru",
@@ -500,6 +517,68 @@ function runPactl(session, args) {
 
 function authorizeServer(req) {
   return req.headers["x-browsertv-secret"] === SERVER_SECRET;
+}
+
+function clampCoordinate(value, size) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return null;
+  return Math.max(0, Math.min(size - 1, Math.round(number)));
+}
+
+async function dispatchClick(session, x, y) {
+  const response = await fetch(`http://127.0.0.1:${session.debugPort}/json/list`);
+  if (!response.ok) {
+    throw new Error(`Chromium debug endpoint returned ${response.status}`);
+  }
+
+  const targets = await response.json();
+  const target = targets.find(candidate => candidate.type === "page" && candidate.webSocketDebuggerUrl);
+  if (!target) {
+    throw new Error("Chromium page target is not ready");
+  }
+
+  const socket = new WebSocket(target.webSocketDebuggerUrl);
+  await waitForWebSocketOpen(socket, 2000);
+  try {
+    await sendCdpCommand(socket, 1, "Input.dispatchMouseEvent", { type: "mouseMoved", x, y });
+    await sendCdpCommand(socket, 2, "Input.dispatchMouseEvent", { type: "mousePressed", x, y, button: "left", buttons: 1, clickCount: 1 });
+    await sendCdpCommand(socket, 3, "Input.dispatchMouseEvent", { type: "mouseReleased", x, y, button: "left", buttons: 0, clickCount: 1 });
+  } finally {
+    socket.close();
+  }
+}
+
+function waitForWebSocketOpen(socket, timeoutMs) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error("Timed out connecting to Chromium")), timeoutMs);
+    socket.addEventListener("open", () => {
+      clearTimeout(timer);
+      resolve();
+    }, { once: true });
+    socket.addEventListener("error", () => {
+      clearTimeout(timer);
+      reject(new Error("Failed to connect to Chromium"));
+    }, { once: true });
+  });
+}
+
+function sendCdpCommand(socket, id, method, params) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`Timed out executing ${method}`)), 2000);
+    const onMessage = event => {
+      const message = JSON.parse(String(event.data));
+      if (message.id !== id) return;
+      clearTimeout(timer);
+      socket.removeEventListener("message", onMessage);
+      if (message.error) {
+        reject(new Error(`${method}: ${message.error.message || "unknown CDP error"}`));
+      } else {
+        resolve(message.result);
+      }
+    };
+    socket.addEventListener("message", onMessage);
+    socket.send(JSON.stringify({ id, method, params }));
+  });
 }
 
 async function readJson(req) {

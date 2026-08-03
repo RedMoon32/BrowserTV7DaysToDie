@@ -9,6 +9,8 @@ public static class BrowserTvServerStateService
     private static BrowserTvState state = new BrowserTvState();
     private static BrowserTvBridgeClient bridgeClient;
     private static int operationRevision;
+    private static readonly System.Collections.Generic.Dictionary<int, DateTime> LastClickAt = new System.Collections.Generic.Dictionary<int, DateTime>();
+    private const double ClickCooldownMilliseconds = 120d;
 
     public static BrowserTvState Current
     {
@@ -55,6 +57,61 @@ public static class BrowserTvServerStateService
                 SetVolume(blockPos, value);
                 break;
         }
+    }
+
+    public static void HandleClick(World world, Vector3i blockPos, float u, float v, int entityId)
+    {
+        if (!BrowserTvConfig.Current.EnableBrowserTv || world == null || float.IsNaN(u) || float.IsNaN(v) || u < 0f || u > 1f || v < 0f || v > 1f)
+        {
+            return;
+        }
+
+        string sessionId;
+        lock (Sync)
+        {
+            if (state.Power != BrowserTvPowerState.On || !state.IsSameTv(blockPos) || string.IsNullOrEmpty(state.SessionId))
+            {
+                return;
+            }
+
+            EntityAlive player = world.GetEntity(entityId) as EntityAlive;
+            if (player == null || player.inventory == null || player.inventory.holdingItem == null || player.inventory.holdingItem.Name != "BrowserTvRemote")
+            {
+                Debug.LogWarning("[BrowserTV] Rejected click from " + entityId + ": Browser TV remote is not held.");
+                return;
+            }
+
+            Vector3 targetCenter = new Vector3(blockPos.x + 0.5f, blockPos.y + 0.5f, blockPos.z + 0.5f);
+            if (Vector3.Distance(player.position, targetCenter) > 31f)
+            {
+                Debug.LogWarning("[BrowserTV] Rejected click from " + entityId + ": target is out of range.");
+                return;
+            }
+
+            DateTime now = DateTime.UtcNow;
+            if (LastClickAt.TryGetValue(entityId, out DateTime lastClick) && (now - lastClick).TotalMilliseconds < ClickCooldownMilliseconds)
+            {
+                return;
+            }
+
+            LastClickAt[entityId] = now;
+            sessionId = state.SessionId;
+        }
+
+        int x = Mathf.Clamp(Mathf.RoundToInt(u * 1279f), 0, 1279);
+        int y = Mathf.Clamp(Mathf.RoundToInt(v * 719f), 0, 719);
+        ThreadPool.QueueUserWorkItem(_ =>
+        {
+            try
+            {
+                bridgeClient.Click(sessionId, x, y);
+                Debug.Log("[BrowserTV] Click at " + x + "," + y + " by player " + entityId + " on " + blockPos);
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning("[BrowserTV] Bridge click failed: " + ex.Message);
+            }
+        });
     }
 
     public static void PowerOn(Vector3i blockPos, string url, int entityId)
