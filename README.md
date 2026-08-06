@@ -1,5 +1,7 @@
 # BrowserTV
 
+<img width="1280" height="719" alt="photo_2026-06-03_15-29-01" src="https://github.com/user-attachments/assets/09c79ee0-b15e-4db5-a1c0-c86212cea791" />
+
 BrowserTV is a 7 Days to Die mod that adds powered TV blocks capable of showing a remote browser page in-game. The game mod sends only control and state messages through 7DTD NetPackages; browser rendering and media encoding are handled by a separate Docker bridge.
 
 ## What It Includes
