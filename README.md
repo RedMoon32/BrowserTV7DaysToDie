@@ -1,5 +1,7 @@
 # BrowserTV
 
+<img width="1280" height="719" alt="photo_2026-06-03_15-29-01" src="https://github.com/user-attachments/assets/09c79ee0-b15e-4db5-a1c0-c86212cea791" />
+
 BrowserTV is a 7 Days to Die mod that adds powered TV blocks capable of showing a remote browser page in-game. The game mod sends only control and state messages through 7DTD NetPackages; browser rendering and media encoding are handled by a separate Docker bridge.
 
 ## What It Includes
@@ -20,13 +22,42 @@ The current package is designed for a small trusted server. It is not hardened f
 
 ## Installation
 
-1. Put this folder in:
+The mod has two parts that do not have to run on the same machine:
+
+- The **game mod** (this folder) — the 7DTD blocks, UI and logic. It runs on the dedicated server and on every client that should watch TVs.
+- The **media server** (the `bridge/` folder plus `docker-compose.yml`, referred to as the *bridge*) — a Docker container that renders and streams the browser. It can run on the same machine or on a separate server with Docker; clients only need HTTP access to it.
+
+### 1. Install the game mod (server and every client)
+
+1. **Get the files.** On GitHub press **Code ▾ → Download ZIP** (or `git clone https://github.com/RedMoon32/BrowserTV7DaysToDie.git`), then extract the ZIP anywhere.
+
+2. **Name the folder.** GitHub names the extracted folder after the repo + branch, e.g. `BrowserTV7DaysToDie-main`. Rename it to `BrowserTV` so it matches the paths in this README.
+
+3. **Find the game folder in Steam.** In the Steam library, right-click **7 Days to Die** → **Manage** → **Browse local files**. That opens the game folder, e.g.:
 
    ```text
-   7 Days To Die/Mods/BrowserTV
+   C:\Program Files (x86)\Steam\steamapps\common\7 Days To Die
    ```
 
-2. Start the bridge from the mod folder:
+4. **Open the Mods folder.** Inside the game folder open `Mods` (create the folder if it does not exist yet). The mod must end up so that `ModInfo.xml` is directly inside a folder under `Mods`:
+
+   ```text
+   ...\7 Days To Die\Mods\BrowserTV\ModInfo.xml
+   ```
+
+5. **Copy the mod folder** (`BrowserTV` from step 2) into `Mods`.
+
+6. **Repeat on every machine that plays** — the dedicated server (its own `...\7 Days To Die\Mods\` folder) and every client. Use the same build everywhere so the server and client code stays in sync.
+
+7. **Enable mods on clients.** 7 Days to Die must be allowed to load mods (EAC / advanced anti-cheat off or mods enabled), otherwise the blocks never appear.
+
+### 2. Run the media bridge
+
+The bridge is a small Node.js container. For each active TV it starts a headless Chromium on a virtual display (Xvfb), captures the screen and audio with ffmpeg, and serves the resulting MPEG-TS stream to every client watching that TV — all clients share one encoder, so rendering and encoding never happen on the game machines. The game only sends it small control commands (start/stop, URL, clicks).
+
+1. Install Docker on the bridge host (a Linux server, or Windows with Docker Desktop) and place this folder there — any copy containing `docker-compose.yml` and `bridge/` works.
+
+2. Start the bridge from that folder:
 
    ```powershell
    docker compose up -d --build browser-tv-bridge
@@ -38,7 +69,11 @@ The current package is designed for a small trusted server. It is not hardened f
    Invoke-RestMethod http://127.0.0.1:8787/health
    ```
 
-4. Start the game/server and place a BrowserTV block.
+4. Point `Config/browser-tv.json` at the bridge: `bridgeInternalUrl` is used by the game server, `bridgePublicUrl` must be reachable by every client (hostname or LAN IP of the bridge host). `serverSecret` in the config must equal `BROWSER_TV_SERVER_SECRET` in `docker-compose.yml`.
+
+5. Start the game/server and place a BrowserTV block.
+
+The bridge serves plain HTTP. If clients connect from outside the LAN, put it behind a reverse proxy with TLS and keep the secret strong. The game side is Windows-only: the bundled native LibVLC client lives in `libvlc/win-x64`; the bridge itself is a Linux container and runs fine on Windows via Docker Desktop.
 
 ## Configuration
 
@@ -68,6 +103,8 @@ The Docker bridge uses matching environment variables in `docker-compose.yml`, e
 - `BROWSER_TV_WIDTH`
 - `BROWSER_TV_HEIGHT`
 - `BROWSER_TV_FPS`
+- `BROWSER_TV_MEDIA_ROOT` (default `/tmp/browser-tv-media`, scratch/session files for the bridge)
+- `BROWSER_TV_DISPLAY_BASE` (default `90`, first Xvfb display number used for sessions)
 
 For a real server, change the default secret in both `Config/browser-tv.json` and `docker-compose.yml`.
 
