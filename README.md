@@ -20,13 +20,16 @@ The current package is designed for a small trusted server. It is not hardened f
 
 ## Installation
 
-1. Put this folder in:
+The mod has two parts that do not have to run on the same machine:
 
-   ```text
-   7 Days To Die/Mods/BrowserTV
-   ```
+- The **game mod** (this folder) goes into `7 Days To Die/Mods/BrowserTV` on both the dedicated server and every client that should watch TVs. Install the same build on all of them, otherwise the server and client logic can disagree.
+- The **media server** (the `bridge/` folder plus `docker-compose.yml`, referred to as the *bridge* throughout this README) runs in Docker, either on the same machine or on a separate server with Docker installed (a Linux server, or Windows with Docker Desktop). Clients only need HTTP access to the bridge; they never run Docker or Chromium themselves.
 
-2. Start the bridge from the mod folder:
+The bridge is a small Node.js container. Per active TV it starts a headless Chromium on a virtual display (Xvfb), captures screen and audio through ffmpeg, and serves the resulting MPEG-TS stream to every client watching that TV — all clients share one encoder, so rendering and encoding stay off the game machines. The game server only sends the bridge small control commands (start/stop, URL, clicks).
+
+1. Install Docker on the bridge host and place this folder there (any copy containing `docker-compose.yml` and `bridge/` works).
+
+2. Start the bridge from that folder:
 
    ```powershell
    docker compose up -d --build browser-tv-bridge
@@ -38,7 +41,11 @@ The current package is designed for a small trusted server. It is not hardened f
    Invoke-RestMethod http://127.0.0.1:8787/health
    ```
 
-4. Start the game/server and place a BrowserTV block.
+4. Point `Config/browser-tv.json` at the bridge: `bridgeInternalUrl` is used by the game server, `bridgePublicUrl` must be reachable by every client (hostname or LAN IP of the bridge host). `serverSecret` in the config must equal `BROWSER_TV_SERVER_SECRET` in `docker-compose.yml`.
+
+5. Start the game/server and place a BrowserTV block.
+
+The bridge serves plain HTTP. If clients connect from outside the LAN, put it behind a reverse proxy with TLS and keep the secret strong. The game side is Windows-only: the bundled native LibVLC client lives in `libvlc/win-x64`; the bridge itself is a Linux container and runs fine on Windows via Docker Desktop.
 
 ## Configuration
 
@@ -68,6 +75,8 @@ The Docker bridge uses matching environment variables in `docker-compose.yml`, e
 - `BROWSER_TV_WIDTH`
 - `BROWSER_TV_HEIGHT`
 - `BROWSER_TV_FPS`
+- `BROWSER_TV_MEDIA_ROOT` (default `/tmp/browser-tv-media`, scratch/session files for the bridge)
+- `BROWSER_TV_DISPLAY_BASE` (default `90`, first Xvfb display number used for sessions)
 
 For a real server, change the default secret in both `Config/browser-tv.json` and `docker-compose.yml`.
 

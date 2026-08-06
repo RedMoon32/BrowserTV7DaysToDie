@@ -11,6 +11,9 @@ tmp/
 tmp-session.json
 *.ts
 
+# Bridge scratch and diagnostic backups
+bridge/server.forsen.fun*.js
+
 # Obsolete reference mod copied during development
 YoutubeTVMod/
 neko/
