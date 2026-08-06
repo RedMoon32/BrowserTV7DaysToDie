@@ -14,6 +14,26 @@ const WIDTH = Number(process.env.BROWSER_TV_WIDTH || 1280);
 const HEIGHT = Number(process.env.BROWSER_TV_HEIGHT || 720);
 const FPS = Number(process.env.BROWSER_TV_FPS || 25);
 
+// SOCS "Reject all" tokens that dismiss Google/YouTube's "Before you continue"
+// cookie-consent interstitial (defaults mirror the values used on the forsen
+// deployment). Override with BROWSER_TV_CONSENT_COOKIES as a JSON array of
+// {domain, value} so the tokens can be refreshed without touching the code.
+const DEFAULT_CONSENT_COOKIES = [
+  { domain: ".youtube.com", value: "CAESNQgDEitib3FfaWRlbnRpdHlmcm9udGVuZHVpc2VydmVyXzIwMjYwNjEwLjA1X3AwGgJlbiACGgYIgIG90QY" },
+  { domain: ".google.com", value: "CAESHAgCEhJnd3NfMjAyNjA2MTEtMF9SQzEaAmVuIAEaBgiAgb3RBg" },
+];
+
+function consentCookieConfig() {
+  try {
+    const raw = process.env.BROWSER_TV_CONSENT_COOKIES;
+    if (raw && raw.trim()) {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : DEFAULT_CONSENT_COOKIES;
+    }
+  } catch {}
+  return DEFAULT_CONSENT_COOKIES;
+}
+
 /** @type {Map<string, any>} */
 const sessions = new Map();
 let activeSession = null;
@@ -106,6 +126,7 @@ function createSession(tvId, currentUrl) {
     controllerToken: token("ctrl"),
     display: `:${DISPLAY_BASE + sessions.size + 1}`,
     dir: path.join(MEDIA_ROOT, sessionId),
+    chromeProfile: path.join(MEDIA_ROOT, sessionId, "chrome-profile"),
     pulseRuntime: path.join(MEDIA_ROOT, sessionId, "pulse-runtime"),
     pulseSink: `browsertv_${sessionId.replace(/[^A-Za-z0-9_]/g, "_")}`,
     streamUrl: `${PUBLIC_URL}/media/${sessionId}/stream.ts?token=${encodeURIComponent(viewerToken)}`,
@@ -129,6 +150,7 @@ async function startMedia(session) {
   await delay(700);
 
   await startPulseAudio(session);
+  await seedConsentCookies(session);
   restartChromium(session);
 
   await delay(700);
@@ -159,10 +181,15 @@ function restartChromium(session) {
     session.chromium = null;
   }
 
+  for (const lock of ["SingletonLock", "SingletonSocket", "SingletonCookie"]) {
+    try { fs.rmSync(path.join(session.chromeProfile, lock), { force: true }); } catch {}
+  }
+
   const chromium = spawnLogged(session, "chromium", [
     "--no-sandbox",
     "--no-first-run",
     "--no-default-browser-check",
+    `--user-data-dir=${session.chromeProfile}`,
     "--disable-sync",
     "--disable-dev-shm-usage",
     "--disable-gpu",
@@ -179,6 +206,115 @@ function restartChromium(session) {
 
   session.chromium = chromium;
   session.processes.push(chromium);
+}
+
+// Plant the SOCS "consent dismissed" cookie into the session's chromium profile
+// via a throwaway headless instance, so the kiosk browser never hits the
+// "Before you continue to YouTube" wall (the TV has no way to click it).
+// Only seeds for Google/YouTube URLs, binds DevTools to loopback, and derives
+// a per-session port to avoid collisions.
+function shouldSeedConsent(currentUrl) {
+  try {
+    const host = new URL(currentUrl).host.toLowerCase();
+    return host.includes("youtube.com") || host.includes("google.com");
+  } catch {
+    return false;
+  }
+}
+
+async function seedConsentCookies(session) {
+  if (!shouldSeedConsent(session.currentUrl)) return;
+  fs.mkdirSync(session.chromeProfile, { recursive: true });
+
+  const port = 9100 + (hashCode(session.sessionId) % 400);
+  const seeder = spawnLogged(session, "chromium", [
+    "--headless=new",
+    "--no-sandbox",
+    "--no-first-run",
+    "--no-default-browser-check",
+    "--disable-gpu",
+    "--disable-dev-shm-usage",
+    `--user-data-dir=${session.chromeProfile}`,
+    "--remote-debugging-address=127.0.0.1",
+    `--remote-debugging-port=${port}`,
+    "about:blank",
+  ]);
+
+  try {
+    const wsUrl = await waitForDevtools(port, 10000);
+    await cdpSetConsentCookies(wsUrl);
+    console.log(JSON.stringify({ event: "consent_seeded", sessionId: session.sessionId }));
+  } catch (error) {
+    console.error(JSON.stringify({ event: "consent_seed_failed", sessionId: session.sessionId, error: String(error?.message || error) }));
+  } finally {
+    killProcess(seeder);
+  }
+
+  await delay(1200);
+}
+
+function hashCode(value) {
+  let hash = 0;
+  for (let i = 0; i < value.length; i++) {
+    hash = ((hash << 5) - hash + value.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash);
+}
+
+async function waitForDevtools(port, timeoutMs) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    try {
+      const res = await fetch(`http://127.0.0.1:${port}/json/version`);
+      if (res.ok) {
+        const info = await res.json();
+        if (info.webSocketDebuggerUrl) return info.webSocketDebuggerUrl;
+      }
+    } catch {}
+    await delay(200);
+  }
+  throw new Error("devtools endpoint not ready");
+}
+
+function cdpSetConsentCookies(wsUrl) {
+  return new Promise((resolve, reject) => {
+    const ws = new WebSocket(wsUrl);
+    const expires = Math.floor(Date.now() / 1000) + 400 * 24 * 60 * 60;
+    const cookies = consentCookieConfig().map(c => ({
+      name: "SOCS",
+      value: c.value,
+      domain: c.domain,
+      path: "/",
+      secure: true,
+      httpOnly: false,
+      sameSite: "Lax",
+      expires,
+    }));
+    let done = false;
+    const finish = (error) => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      try { ws.close(); } catch {}
+      error ? reject(error) : resolve();
+    };
+    const timer = setTimeout(() => finish(new Error("cdp timeout")), 8000);
+    timer.unref?.();
+    ws.addEventListener("open", () => {
+      ws.send(JSON.stringify({ id: 1, method: "Storage.setCookies", params: { cookies } }));
+    });
+    ws.addEventListener("message", (event) => {
+      let msg;
+      try { msg = JSON.parse(event.data); } catch { return; }
+      if (msg.id === 1) {
+        if (msg.error) return finish(new Error(JSON.stringify(msg.error)));
+        ws.send(JSON.stringify({ id: 2, method: "Browser.close" }));
+      } else if (msg.id === 2) {
+        finish();
+      }
+    });
+    ws.addEventListener("error", () => finish(new Error("cdp ws error")));
+  });
 }
 
 function spawnLogged(session, command, args, extraEnv = {}) {
