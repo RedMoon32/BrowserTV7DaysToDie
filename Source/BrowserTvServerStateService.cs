@@ -98,8 +98,10 @@ public static class BrowserTvServerStateService
             sessionId = state.SessionId;
         }
 
-        int x = Mathf.Clamp(Mathf.RoundToInt(u * 1279f), 0, 1279);
-        int y = Mathf.Clamp(Mathf.RoundToInt(v * 719f), 0, 719);
+        int screenWidth = BrowserTvConfig.Current.BrowserWidth;
+        int screenHeight = BrowserTvConfig.Current.BrowserHeight;
+        int x = Mathf.Clamp(Mathf.RoundToInt(u * (screenWidth - 1)), 0, screenWidth - 1);
+        int y = Mathf.Clamp(Mathf.RoundToInt(v * (screenHeight - 1)), 0, screenHeight - 1);
         ThreadPool.QueueUserWorkItem(_ =>
         {
             try

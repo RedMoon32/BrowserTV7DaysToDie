@@ -1,9 +1,11 @@
+using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 public class ItemActionBrowserTvRemote : ItemAction
 {
     private const float MaxRange = 30f;
-    private const float ObstacleEpsilon = 0.05f;
+    private const float ObstacleEpsilon = 0.5f;
 
     public override void ExecuteAction(ItemActionData actionData, bool released)
     {
@@ -19,27 +21,56 @@ public class ItemActionBrowserTvRemote : ItemAction
             return;
         }
 
-        BrowserTvScreenController controller = BrowserTvManager.Instance.GetController(state.BlockPos);
-        if (controller == null)
-        {
-            ShowTooltip(player, "Browser TV screen is not loaded");
-            return;
-        }
-
         Ray ray = player.GetLookRay();
-        if (!controller.TryGetBrowserCoordinates(ray, out Vector2 browserCoordinates, out float screenDistance, out BrowserTvScreenController.ScreenRaycastFailure failure))
+        ray.origin -= Origin.position;
+
+        BrowserTvScreenController target = null;
+        Vector2 browserCoordinates = Vector2.zero;
+        float nearestDistance = float.MaxValue;
+        BrowserTvScreenController.ScreenRaycastFailure lastFailure = BrowserTvScreenController.ScreenRaycastFailure.None;
+
+        List<BrowserTvScreenController> controllers = BrowserTvManager.Instance.GetAllControllers();
+        for (int i = 0; i < controllers.Count; i++)
         {
-            ShowTooltip(player, GetRaycastFailureMessage(failure));
+            BrowserTvScreenController candidate = controllers[i];
+            if (candidate == null || candidate.ParentTileEntity == null)
+            {
+                continue;
+            }
+
+            if (!candidate.TryGetBrowserCoordinates(ray, MaxRange, out Vector2 coords, out float distance, out BrowserTvScreenController.ScreenRaycastFailure failure))
+            {
+                lastFailure = failure;
+                continue;
+            }
+
+            if (distance < nearestDistance)
+            {
+                nearestDistance = distance;
+                browserCoordinates = coords;
+                target = candidate;
+            }
+        }
+
+        if (target == null)
+        {
+            ShowTooltip(player, GetRaycastFailureMessage(lastFailure));
             return;
         }
 
-        if (screenDistance > MaxRange)
+        if (nearestDistance > MaxRange)
         {
             ShowTooltip(player, "Browser TV screen is too far away");
             return;
         }
 
-        if (HasForeignObstacle(ray, screenDistance, controller))
+        if (!state.IsSameTv(target.ParentTileEntity.ToWorldPos()))
+        {
+            ShowTooltip(player, "Aim at the active Browser TV");
+            return;
+        }
+
+        if (HasForeignObstacle(ray, nearestDistance, target))
         {
             ShowTooltip(player, "Browser TV screen is blocked");
             return;
@@ -63,12 +94,13 @@ public class ItemActionBrowserTvRemote : ItemAction
 
     private static bool HasForeignObstacle(Ray ray, float screenDistance, BrowserTvScreenController controller)
     {
+        Bounds screenBounds = controller.ScreenBounds;
         RaycastHit[] hits = Physics.RaycastAll(ray, screenDistance, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore);
         System.Array.Sort(hits, (first, second) => first.distance.CompareTo(second.distance));
-        float obstacleDistance = screenDistance - ObstacleEpsilon;
+        float obstacleLimit = screenDistance - ObstacleEpsilon;
         foreach (RaycastHit hit in hits)
         {
-            if (hit.collider == null || hit.distance >= obstacleDistance || controller.OwnsCollider(hit.collider))
+            if (hit.collider == null || hit.distance >= obstacleLimit || controller.OwnsCollider(hit.collider) || screenBounds.Contains(hit.point))
             {
                 continue;
             }
@@ -89,6 +121,8 @@ public class ItemActionBrowserTvRemote : ItemAction
                 return "Browser TV screen mesh is unavailable";
             case BrowserTvScreenController.ScreenRaycastFailure.MeshUvMissing:
                 return "Browser TV screen has no click coordinates";
+            case BrowserTvScreenController.ScreenRaycastFailure.MissedSurface:
+                return "Aim at the Browser TV screen";
             default:
                 return "Aim at the Browser TV screen";
         }
