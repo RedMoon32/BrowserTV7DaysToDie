@@ -14,6 +14,9 @@ tmp-session.json
 # Bridge scratch and diagnostic backups
 bridge/server.forsen.fun*.js
 
+# Per-install secret config (holds serverSecret); copy from the committed example
+Config/browser-tv.json
+
 # Obsolete reference mod copied during development
 YoutubeTVMod/
 neko/

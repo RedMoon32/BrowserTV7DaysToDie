@@ -1,0 +1,13 @@
+{
+    "enableBrowserTv": true,
+    "bridgeInternalUrl": "http://127.0.0.1:8787",
+    "bridgePublicUrl": "http://127.0.0.1:8787",
+    "serverSecret": "change-me-browser-tv-secret",
+    "defaultUrl": "https://www.google.com",
+    "spatialAudioEnabled": true,
+    "audioMinDistance": 2.0,
+    "audioMaxDistance": 20.0,
+    "audioRolloffPower": 1.5,
+    "browserWidth": 1280,
+    "browserHeight": 720
+}

@@ -77,7 +77,15 @@ The bridge serves plain HTTP. If clients connect from outside the LAN, put it be
 
 ## Configuration
 
-Game-side settings are in `Config/browser-tv.json`:
+Game-side settings live in `Config/browser-tv.json`. This file contains your `serverSecret`, so it is **per-install and intentionally not committed** to the repository.
+
+On a fresh install, copy the committed template and fill it in:
+
+```powershell
+Copy-Item Config/browser-tv.example.json Config/browser-tv.json
+```
+
+Example (`Config/browser-tv.example.json`):
 
 ```json
 {
@@ -105,6 +113,8 @@ The Docker bridge uses matching environment variables in `docker-compose.yml`, e
 - `BROWSER_TV_FPS`
 - `BROWSER_TV_MEDIA_ROOT` (default `/tmp/browser-tv-media`, scratch/session files for the bridge)
 - `BROWSER_TV_DISPLAY_BASE` (default `90`, first Xvfb display number used for sessions)
+
+Managed by `.gitignore`: `Config/browser-tv.json` will never be committed, so a leaked or weak secret is not exposed in the repository. Keep the secret strong and never rename the file into the repo.
 
 For a real server, change the default secret in both `Config/browser-tv.json` and `docker-compose.yml`.
 
