@@ -240,7 +240,7 @@ function restartChromium(session) {
     "--enable-gpu-rasterization",
     "--enable-zero-copy",
     "--ignore-gpu-blocklist",
-    "--use-gl=egl",
+    "--use-gl=angle",
     "--enable-features=VaapiVideoDecoder",
     "--autoplay-policy=no-user-gesture-required",
     "--lang=ru-RU",
