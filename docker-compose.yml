@@ -5,13 +5,17 @@ services:
     container_name: browser-tv-bridge
     restart: unless-stopped
     shm_size: "2gb"
+    gpus: all
     environment:
+      NVIDIA_DRIVER_CAPABILITIES: "compute,graphics,utility,video"
       PORT: "8787"
       BROWSER_TV_SERVER_SECRET: "change-me-browser-tv-secret"
       BROWSER_TV_PUBLIC_URL: "http://127.0.0.1:8787"
       BROWSER_TV_DEFAULT_URL: "https://www.google.com"
       BROWSER_TV_WIDTH: "1280"
       BROWSER_TV_HEIGHT: "720"
-      BROWSER_TV_FPS: "30"
+      BROWSER_TV_FPS: "60"
+      BROWSER_TV_VIEWER_IDLE_TIMEOUT_MS: "5000"
+      BROWSER_TV_PROXY_URL: "${BROWSER_TV_PROXY_URL:-}"
     ports:
       - "8787:8787"

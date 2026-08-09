@@ -12,7 +12,14 @@ const MEDIA_ROOT = process.env.BROWSER_TV_MEDIA_ROOT || "/tmp/browser-tv-media";
 const DISPLAY_BASE = Number(process.env.BROWSER_TV_DISPLAY_BASE || 90);
 const WIDTH = Number(process.env.BROWSER_TV_WIDTH || 1280);
 const HEIGHT = Number(process.env.BROWSER_TV_HEIGHT || 720);
-const FPS = Number(process.env.BROWSER_TV_FPS || 25);
+const FPS = Number(process.env.BROWSER_TV_FPS || 60);
+const VIEWER_IDLE_TIMEOUT_MS = Number(process.env.BROWSER_TV_VIEWER_IDLE_TIMEOUT_MS || 5000);
+const PROXY_URL = String(process.env.BROWSER_TV_PROXY_URL || "").trim();
+
+const CONSENT_COOKIE_VALUES = [
+  { domain: ".youtube.com", value: "CAESNQgDEitib3FfaWRlbnRpdHlmcm9udGVuZHVpc2VydmVyXzIwMjYwNjEwLjA1X3AwGgJlbiACGgYIgIG90QY" },
+  { domain: ".google.com", value: "CAESHAgCEhJnd3NfMjAyNjA2MTEtMF9SQzEaAmVuIAEaBgiAgb3RBg" },
+];
 
 /** @type {Map<string, any>} */
 const sessions = new Map();
@@ -28,6 +35,8 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, {
         ok: true,
         active: Boolean(activeSession),
+        activeViewers: activeSession?.stream?.clients.size || 0,
+        mediaRunning: Boolean(activeSession?.mediaRunning),
         mediaRoot: MEDIA_ROOT,
         media: "mpegts-av",
       });
@@ -75,8 +84,15 @@ const server = http.createServer(async (req, res) => {
       const session = sessions.get(String(body.sessionId || ""));
       if (!session) return json(res, 404, { error: "session not found" });
       session.currentUrl = String(body.url || DEFAULT_URL);
-      restartChromium(session);
-      console.log(JSON.stringify({ event: "browser_navigate", sessionId: session.sessionId, url: session.currentUrl }));
+      if (session.mediaRunning) {
+        stopTransportStream(session, session.stream, "navigate");
+        restartChromium(session);
+      }
+      console.log(JSON.stringify({
+        event: session.mediaRunning ? "browser_navigate" : "browser_navigate_deferred",
+        sessionId: session.sessionId,
+        url: session.currentUrl,
+      }));
       return json(res, 200, { ok: true, currentUrl: session.currentUrl });
     }
 
@@ -85,6 +101,7 @@ const server = http.createServer(async (req, res) => {
       const body = await readJson(req);
       const session = sessions.get(String(body.sessionId || ""));
       if (!session) return json(res, 404, { error: "session not found" });
+      if (!session.mediaRunning) return json(res, 409, { error: "session has no active viewers" });
       const x = clampCoordinate(body.x, WIDTH);
       const y = clampCoordinate(body.y, HEIGHT);
       if (x === null || y === null) return json(res, 400, { error: "invalid coordinates" });
@@ -120,6 +137,7 @@ function createSession(tvId, currentUrl) {
     debugPort: 9222,
     display: `:${DISPLAY_BASE + sessions.size + 1}`,
     dir: path.join(MEDIA_ROOT, sessionId),
+    chromeProfile: path.join(MEDIA_ROOT, sessionId, "chrome-profile"),
     pulseRuntime: path.join(MEDIA_ROOT, sessionId, "pulse-runtime"),
     pulseSink: `browsertv_${sessionId.replace(/[^A-Za-z0-9_]/g, "_")}`,
     streamUrl: `${PUBLIC_URL}/media/${sessionId}/stream.ts?token=${encodeURIComponent(viewerToken)}`,
@@ -127,10 +145,15 @@ function createSession(tvId, currentUrl) {
     chromium: null,
     pulse: null,
     stream: null,
+    mediaRunning: false,
+    mediaStartPromise: null,
   };
 }
 
 async function startMedia(session) {
+  session.processes = [];
+  session.chromium = null;
+  session.pulse = null;
   fs.rmSync(session.dir, { recursive: true, force: true });
   fs.mkdirSync(session.dir, { recursive: true });
 
@@ -143,9 +166,31 @@ async function startMedia(session) {
   await delay(700);
 
   await startPulseAudio(session);
+  await seedConsentCookies(session);
   restartChromium(session);
 
   await delay(700);
+  session.mediaRunning = true;
+}
+
+async function ensureMediaRunning(session) {
+  if (session.mediaRunning) {
+    return;
+  }
+
+  if (!session.mediaStartPromise) {
+    console.log(JSON.stringify({ event: "media_resume_start", sessionId: session.sessionId }));
+    session.mediaStartPromise = startMedia(session)
+      .then(() => {
+        session.mediaRunning = true;
+        console.log(JSON.stringify({ event: "media_resume_ready", sessionId: session.sessionId }));
+      })
+      .finally(() => {
+        session.mediaStartPromise = null;
+      });
+  }
+
+  await session.mediaStartPromise;
 }
 
 async function startPulseAudio(session) {
@@ -173,17 +218,30 @@ function restartChromium(session) {
     session.chromium = null;
   }
 
+  for (const lock of ["SingletonLock", "SingletonSocket", "SingletonCookie"]) {
+    try { fs.rmSync(path.join(session.chromeProfile, lock), { force: true }); } catch {}
+  }
+
   const chromium = spawnLogged(session, "chromium", [
     "--no-sandbox",
     "--no-first-run",
     "--no-default-browser-check",
-    "--disable-sync",
-    "--disable-dev-shm-usage",
-    "--disable-gpu",
-    "--disable-background-networking",
-    `--user-data-dir=${path.join(session.dir, "chrome-profile")}`,
+    ...(PROXY_URL ? [`--proxy-server=${PROXY_URL}`] : []),
+    `--user-data-dir=${session.chromeProfile}`,
     "--remote-debugging-address=127.0.0.1",
     `--remote-debugging-port=${session.debugPort}`,
+    "--disable-sync",
+    "--disable-dev-shm-usage",
+    "--disable-background-networking",
+    "--disable-background-timer-throttling",
+    "--disable-backgrounding-occluded-windows",
+    "--disable-renderer-backgrounding",
+    "--disable-features=CalculateNativeWinOcclusion",
+    "--enable-gpu-rasterization",
+    "--enable-zero-copy",
+    "--ignore-gpu-blocklist",
+    "--use-gl=egl",
+    "--enable-features=VaapiVideoDecoder",
     "--autoplay-policy=no-user-gesture-required",
     "--lang=ru-RU",
     "--accept-lang=ru-RU,ru",
@@ -198,10 +256,97 @@ function restartChromium(session) {
   session.processes.push(chromium);
 }
 
+async function seedConsentCookies(session) {
+  const displayNum = Number(String(session.display).match(/\d+/)?.[0] || 22);
+  const debugPort = 9000 + displayNum;
+  fs.mkdirSync(session.chromeProfile, { recursive: true });
+
+  const seeder = spawn("chromium", [
+    "--headless=new",
+    "--no-sandbox",
+    "--no-first-run",
+    "--no-default-browser-check",
+    "--disable-gpu",
+    "--disable-dev-shm-usage",
+    `--user-data-dir=${session.chromeProfile}`,
+    `--remote-debugging-port=${debugPort}`,
+    "about:blank",
+  ], { env: { ...process.env }, stdio: ["ignore", "pipe", "pipe"], detached: true });
+  seeder.stdout?.on("data", data => logProcess(session, "consent-seed", data));
+  seeder.stderr?.on("data", data => logProcess(session, "consent-seed", data));
+
+  try {
+    const wsUrl = await waitForDevtools(debugPort, 10000);
+    await cdpSetConsentCookies(wsUrl);
+    console.log(JSON.stringify({ event: "consent_seeded", sessionId: session.sessionId }));
+  } catch (error) {
+    console.error(JSON.stringify({ event: "consent_seed_failed", sessionId: session.sessionId, error: String(error?.message || error) }));
+    killProcess(seeder);
+  }
+  await delay(900);
+}
+
+async function waitForDevtools(port, timeoutMs) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    try {
+      const response = await fetch(`http://127.0.0.1:${port}/json/version`);
+      if (response.ok) {
+        const info = await response.json();
+        if (info.webSocketDebuggerUrl) return info.webSocketDebuggerUrl;
+      }
+    } catch {}
+    await delay(200);
+  }
+  throw new Error("devtools endpoint not ready");
+}
+
+function cdpSetConsentCookies(wsUrl) {
+  return new Promise((resolve, reject) => {
+    const ws = new WebSocket(wsUrl);
+    const expires = Math.floor(Date.now() / 1000) + 400 * 24 * 60 * 60;
+    const cookies = CONSENT_COOKIE_VALUES.map(cookie => ({
+      name: "SOCS",
+      value: cookie.value,
+      domain: cookie.domain,
+      path: "/",
+      secure: true,
+      httpOnly: false,
+      sameSite: "Lax",
+      expires,
+    }));
+    let done = false;
+    const finish = error => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      try { ws.close(); } catch {}
+      error ? reject(error) : resolve();
+    };
+    const timer = setTimeout(() => finish(new Error("cdp timeout")), 8000);
+    timer.unref?.();
+    ws.addEventListener("open", () => {
+      ws.send(JSON.stringify({ id: 1, method: "Storage.setCookies", params: { cookies } }));
+    });
+    ws.addEventListener("message", event => {
+      let message;
+      try { message = JSON.parse(event.data); } catch { return; }
+      if (message.id === 1) {
+        if (message.error) return finish(new Error(JSON.stringify(message.error)));
+        ws.send(JSON.stringify({ id: 2, method: "Browser.close" }));
+      } else if (message.id === 2) {
+        finish();
+      }
+    });
+    ws.addEventListener("error", () => finish(new Error("cdp ws error")));
+  });
+}
+
 function spawnLogged(session, command, args, extraEnv = {}) {
   const child = spawn(command, args, {
     env: { ...process.env, ...extraEnv },
     stdio: ["ignore", "pipe", "pipe"],
+    detached: true,
   });
   child.stdout.on("data", data => logProcess(session, command, data));
   child.stderr.on("data", data => logProcess(session, command, data));
@@ -261,13 +406,39 @@ function serveMedia(_req, res, url) {
   fs.createReadStream(file).pipe(res);
 }
 
-function serveTransportStream(req, res, session) {
-  const stream = ensureTransportStream(session);
+async function serveTransportStream(req, res, session) {
+  let closedBeforeReady = null;
+  const markClosedBeforeReady = reason => {
+    if (!closedBeforeReady) closedBeforeReady = reason;
+  };
+  const onRequestAborted = () => markClosedBeforeReady("request_aborted_before_ready");
+  const onRequestClose = () => markClosedBeforeReady("request_close_before_ready");
+  const onResponseClose = () => markClosedBeforeReady("response_close_before_ready");
+  req.once("aborted", onRequestAborted);
+  req.once("close", onRequestClose);
+  res.once("close", onResponseClose);
 
   res.writeHead(200, {
     "content-type": "video/mp2t",
     "cache-control": "no-cache",
   });
+  res.flushHeaders?.();
+
+  await ensureMediaRunning(session);
+
+  req.removeListener("aborted", onRequestAborted);
+  req.removeListener("close", onRequestClose);
+  res.removeListener("close", onResponseClose);
+  if (closedBeforeReady || res.destroyed || res.writableEnded) {
+    console.log(JSON.stringify({
+      event: "stream_client_aborted_before_ready",
+      sessionId: session.sessionId,
+      reason: closedBeforeReady || "response_closed",
+    }));
+    return;
+  }
+
+  const stream = ensureTransportStream(session);
 
   const client = {
     res,
@@ -280,9 +451,10 @@ function serveTransportStream(req, res, session) {
     clients: stream.clients.size,
   }));
 
-  const stop = () => removeStreamClient(session, stream, client);
-  req.on("close", stop);
-  res.on("close", stop);
+  const stop = reason => removeStreamClient(session, stream, client, reason);
+  req.on("aborted", () => stop("request_aborted"));
+  req.on("close", () => stop("request_close"));
+  res.on("close", () => stop("response_close"));
 }
 
 function ensureTransportStream(session) {
@@ -290,6 +462,11 @@ function ensureTransportStream(session) {
     if (session.stream.idleTimer) {
       clearTimeout(session.stream.idleTimer);
       session.stream.idleTimer = null;
+      console.log(JSON.stringify({
+        event: "viewer_idle_cancelled",
+        sessionId: session.sessionId,
+        clients: session.stream.clients.size,
+      }));
     }
 
     return session.stream;
@@ -311,14 +488,12 @@ function ensureTransportStream(session) {
     "-loglevel", "warning",
     "-fflags", "+genpts",
     "-thread_queue_size", "1024",
-    "-use_wallclock_as_timestamps", "1",
     "-f", "x11grab",
     "-draw_mouse", "1",
     "-video_size", `${WIDTH}x${HEIGHT}`,
     "-framerate", String(FPS),
     "-i", `${session.display}.0`,
     "-thread_queue_size", "1024",
-    "-use_wallclock_as_timestamps", "1",
     "-f", "pulse",
     "-i", `${session.pulseSink}.monitor`,
     "-map", "0:v:0",
@@ -329,7 +504,8 @@ function ensureTransportStream(session) {
     "-profile:v", "baseline",
     "-x264-params", "bframes=0:rc-lookahead=0:sync-lookahead=0:sliced-threads=1",
     "-pix_fmt", "yuv420p",
-    "-r", String(FPS),
+    "-vf", `setpts=N/(${FPS}*TB)`,
+    "-fps_mode", "cfr",
     "-g", String(FPS),
     "-keyint_min", String(FPS),
     "-sc_threshold", "0",
@@ -345,6 +521,7 @@ function ensureTransportStream(session) {
   ], {
     env: makePulseEnv(session),
     stdio: ["ignore", "pipe", "pipe"],
+    detached: true,
   });
   stream.ffmpeg = ffmpeg;
 
@@ -388,7 +565,7 @@ function ensureTransportStream(session) {
     stream.intervalBytes += chunk.length;
     for (const client of stream.clients) {
       if (client.closed || client.res.destroyed || client.res.writableEnded) {
-        removeStreamClient(session, stream, client);
+        removeStreamClient(session, stream, client, "write_probe");
         continue;
       }
 
@@ -399,7 +576,7 @@ function ensureTransportStream(session) {
           bufferedBytes: client.res.writableLength,
         }));
         client.res.destroy();
-        removeStreamClient(session, stream, client);
+        removeStreamClient(session, stream, client, "slow_client");
         continue;
       }
 
@@ -410,7 +587,7 @@ function ensureTransportStream(session) {
   return stream;
 }
 
-function removeStreamClient(session, stream, client) {
+function removeStreamClient(session, stream, client, reason) {
   if (client.closed) {
     return;
   }
@@ -421,15 +598,28 @@ function removeStreamClient(session, stream, client) {
     event: "stream_client_leave",
     sessionId: session.sessionId,
     clients: stream.clients.size,
+    reason,
   }));
 
   if (stream.clients.size === 0 && !stream.idleTimer && !stream.stopping) {
+    console.log(JSON.stringify({
+      event: "viewer_idle_scheduled",
+      sessionId: session.sessionId,
+      timeoutMs: VIEWER_IDLE_TIMEOUT_MS,
+    }));
     stream.idleTimer = setTimeout(() => {
       if (stream.clients.size === 0 && session.stream === stream) {
-        stopTransportStream(session, stream, "idle");
+        suspendSessionForIdle(session, stream);
       }
-    }, 5000);
+    }, VIEWER_IDLE_TIMEOUT_MS);
   }
+}
+
+function suspendSessionForIdle(session, stream) {
+  console.log(JSON.stringify({ event: "viewer_idle_expired", sessionId: session.sessionId }));
+  stopTransportStream(session, stream, "idle");
+  stopMediaProcesses(session);
+  console.log(JSON.stringify({ event: "session_suspended", sessionId: session.sessionId }));
 }
 
 function stopTransportStream(session, stream = session.stream, reason = "stop") {
@@ -468,17 +658,38 @@ function closeStreamClients(stream) {
 function closeSession(session) {
   if (!session) return;
   stopTransportStream(session, session.stream, "session_close");
-  for (const child of session.processes.slice().reverse()) {
-    killProcess(child);
-  }
+  stopMediaProcesses(session);
   sessions.delete(session.sessionId);
+  if (activeSession === session) activeSession = null;
   fs.rmSync(session.dir, { recursive: true, force: true });
   console.log(JSON.stringify({ event: "session_stop", sessionId: session.sessionId }));
 }
 
+function stopMediaProcesses(session) {
+  for (const child of session.processes.slice().reverse()) {
+    killProcess(child);
+  }
+  session.processes = [];
+  session.chromium = null;
+  session.pulse = null;
+  session.mediaRunning = false;
+}
+
 function killProcess(child) {
   try {
-    if (!child.killed) child.kill("SIGTERM");
+    if (!child.killed && child.pid) {
+      try {
+        process.kill(-child.pid, "SIGTERM");
+      } catch {
+        child.kill("SIGTERM");
+      }
+
+      setTimeout(() => {
+        try {
+          process.kill(-child.pid, "SIGKILL");
+        } catch {}
+      }, 2000).unref();
+    }
   } catch {}
 }
 

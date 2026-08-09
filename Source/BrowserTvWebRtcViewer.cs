@@ -11,7 +11,7 @@ public class BrowserTvWebRtcViewer : MonoBehaviour
     private const int Height = 720;
     private const int BytesPerPixel = 4;
     private const uint Pitch = Width * BytesPerPixel;
-    private const int TargetFps = 30;
+    private const int TargetFps = 60;
     private const float FrameIntervalSeconds = 1f / TargetFps;
     private const int FrameBufferCount = 3;
     private const int NoFrame = -1;

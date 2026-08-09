@@ -111,7 +111,19 @@ The Docker bridge uses matching environment variables in `docker-compose.yml`, e
 - `BROWSER_TV_WIDTH`
 - `BROWSER_TV_HEIGHT`
 - `BROWSER_TV_FPS`
+- `BROWSER_TV_VIEWER_IDLE_TIMEOUT_MS` (default `5000`; after this period without media viewers, bridge renderer processes are stopped and automatically resumed by the next viewer)
+- `BROWSER_TV_PROXY_URL` (optional SOCKS/HTTP proxy URL; provide it through the bridge host's uncommitted `.env`, not in `docker-compose.yml`)
 - `BROWSER_TV_MEDIA_ROOT` (default `/tmp/browser-tv-media`, scratch/session files for the bridge)
+
+### NVIDIA GPU acceleration
+
+For Chromium hardware rendering/decoding, install [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) on the bridge host. The compose configuration requests all available GPUs and the `compute,graphics,utility,video` driver capabilities. Verify the container can see the GPU after deployment:
+
+```bash
+docker compose exec browser-tv-bridge nvidia-smi
+```
+
+If this command cannot see the GPU, Chromium falls back to software rendering and may consume several CPU cores per active browser session.
 - `BROWSER_TV_DISPLAY_BASE` (default `90`, first Xvfb display number used for sessions)
 
 Managed by `.gitignore`: `Config/browser-tv.json` will never be committed, so a leaked or weak secret is not exposed in the repository. Keep the secret strong and never rename the file into the repo.
