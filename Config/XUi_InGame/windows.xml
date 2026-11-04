@@ -1,0 +1,33 @@
+<config>
+  <append xpath="/windows">
+    <window name="windowBrowserTvControl" width="620" height="360" anchor="Center" pos="-310,180" cursor_area="true" controller="BrowserTvControlWindow, BrowserTV">
+      <rect name="mainRect" depth="0" pos="0,0" width="620" height="360">
+        <sprite depth="0" name="background" sprite="menu_empty_background" color="[black]" type="sliced" fillcenter="true" />
+        <label depth="1" name="lblTitle" pos="20,-16" width="580" height="38" text="Browser TV" font_size="32" justify="center" />
+
+        <rect depth="1" name="panelUrl" pos="0,-62" width="620" height="280">
+          <label depth="2" name="lblUrlTitle" pos="20,-10" width="580" height="30" text="Browser URL" font_size="26" justify="center" />
+          <textfield depth="2" name="txtBrowserTvUrl" pos="20,-50" width="580" height="42" character_limit="512" focus_on_open="true" clear_on_open="false" open_vk_on_open="false" />
+          <simplebutton name="btnBrowserTvUrlSubmit" depth="2" pos="230,-108" width="160" height="42" font_size="22" caption="Open" />
+          <simplebutton name="btnBrowserTvVolume" depth="2" pos="160,-166" width="300" height="46" font_size="24" caption="Volume" />
+          <simplebutton name="btnBrowserTvClose" depth="2" pos="230,-222" width="160" height="40" font_size="22" caption="Close" />
+        </rect>
+
+        <rect depth="1" name="panelVolume" pos="0,-62" width="620" height="280" visible="false">
+          <simplebutton name="btnBrowserTvVolumeBack" depth="2" pos="20,-10" width="100" height="36" font_size="20" caption="Back" />
+          <label depth="2" name="lblVolumeTitle" pos="130,-12" width="380" height="30" text="Local volume" font_size="26" justify="center" />
+          <combobox name="browserTvVolumeSlider" type="ComboBoxFloat" depth="2" pos="60,-82" width="500" height="42" value_min="0" value_max="1" value_increment="0.01" value_wrap="false" scroll_by_increment="true" format_string="P0" />
+        </rect>
+      </rect>
+    </window>
+
+    <window name="windowBrowserTvUrlInput" width="620" height="190" anchor="Center" pos="-310,95" cursor_area="true" controller="BrowserTvUrlInputWindow, BrowserTV">
+      <rect name="mainRect" depth="0" pos="0,0" width="620" height="190">
+        <sprite depth="0" name="background" sprite="menu_empty_background" color="[black]" type="sliced" fillcenter="true" />
+        <label depth="1" name="lblPrompt" pos="20,-16" width="580" height="34" text="Browser URL" font_size="28" justify="center" />
+        <textfield depth="1" name="content" pos="20,-62" width="580" height="42" character_limit="512" focus_on_open="true" clear_on_open="false" open_vk_on_open="false" />
+        <label depth="1" name="lblHint" pos="20,-124" width="580" height="26" text="Press Enter to open" font_size="20" justify="center" />
+      </rect>
+    </window>
+  </append>
+</config>

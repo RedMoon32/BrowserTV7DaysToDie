@@ -24,7 +24,6 @@ public class XUiC_BrowserTvUrlInputWindow : XUiController
 
         RegisterHandlers();
         textInput.UIInput.validation = 0;
-        textInput.characterLimit = 512;
     }
 
     public override void OnOpen()
@@ -88,12 +87,12 @@ public class XUiC_BrowserTvUrlInputWindow : XUiController
         string url = NormalizeUrl(text);
         Debug.Log("[BrowserTV] URL submitted: " + url);
         OnUrlEntered?.Invoke(url);
-        xui.playerUI.windowManager.Close(WindowGroup.ID);
+        xui.playerUI.windowManager.Close(WindowGroup);
     }
 
     private void TextInput_OnInputAbortedHandler(XUiController sender)
     {
-        xui.playerUI.windowManager.Close(WindowGroup.ID);
+        xui.playerUI.windowManager.Close(WindowGroup);
     }
 
     private static string NormalizeUrl(string value)

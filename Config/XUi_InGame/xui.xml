@@ -1,0 +1,10 @@
+<config>
+  <append xpath="/xui">
+    <window_group name="windowBrowserTvControl" defaultselected="txtBrowserTvUrl">
+      <window name="windowBrowserTvControl" />
+    </window_group>
+    <window_group name="windowBrowserTvUrlInput" defaultselected="content">
+      <window name="windowBrowserTvUrlInput" />
+    </window_group>
+  </append>
+</config>

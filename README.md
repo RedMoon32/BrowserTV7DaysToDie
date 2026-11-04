@@ -1,5 +1,7 @@
 # BrowserTV
 
+This branch (`codex/7dtd-3.4`) targets **7 Days to Die 3.4.0**. The bundled mod DLL is built against **3.4.0 b10**; use this build on both the server and all clients. Earlier game versions need the older mod branch.
+
 <img width="1280" height="719" alt="photo_2026-06-03_15-29-01" src="https://github.com/user-attachments/assets/09c79ee0-b15e-4db5-a1c0-c86212cea791" />
 
 BrowserTV is a 7 Days to Die mod that adds powered TV blocks capable of showing a remote browser page in-game. The game mod sends only control and state messages through 7DTD NetPackages; browser rendering and media encoding are handled by a separate Docker bridge.
@@ -13,7 +15,7 @@ BrowserTV is a 7 Days to Die mod that adds powered TV blocks capable of showing 
 
 ## Requirements
 
-- 7 Days to Die with mod loading enabled.
+- 7 Days to Die 3.4.0 with mod loading enabled.
 - Windows client for the current LibVLC bundle.
 - Docker Desktop or Docker Engine for the bridge.
 - Network access from clients to the bridge public URL.
@@ -30,6 +32,8 @@ The mod has two parts that do not have to run on the same machine:
 ### 1. Install the game mod (server and every client)
 
 1. **Get the files.** On GitHub press **Code ▾ → Download ZIP** (or `git clone https://github.com/RedMoon32/BrowserTV7DaysToDie.git`), then extract the ZIP anywhere.
+
+   Select the `codex/7dtd-3.4` branch before downloading. With Git, use `git clone --branch codex/7dtd-3.4 https://github.com/RedMoon32/BrowserTV7DaysToDie.git`.
 
 2. **Name the folder.** GitHub names the extracted folder after the repo + branch, e.g. `BrowserTV7DaysToDie-main`. Rename it to `BrowserTV` so it matches the paths in this README.
 
@@ -92,6 +96,8 @@ Copy-Item .env.example .env
 ```
 
 For an existing installation, back up your configuration before updating and keep its URLs and secret. Do not overwrite it with the template. Update the mod on the server and every client together, and rebuild the bridge: the remote uses a new network packet format.
+
+When upgrading to the 3.4 build, replace the old mod folder instead of overlaying files, then restore your local `Config/browser-tv.json`. The game now loads the UI from `Config/XUi_InGame` and localization from `Config/Localization.csv`; the old `Config/XUi` and `Localization.txt` files are no longer used. Back up your world before trying the new build.
 
 Example (`Config/browser-tv.example.json`):
 
@@ -160,10 +166,18 @@ Only one BrowserTV session is currently intended to be active at a time. Multipl
 Build the C# mod:
 
 ```powershell
-dotnet build Source/BrowserTV.csproj -v:minimal
+dotnet build Source/BrowserTV.csproj "-p:GameDirectory=C:\Program Files (x86)\Steam\steamapps\common\7 Days To Die" -v:minimal
 ```
 
+Set `GameDirectory` to your 3.4 installation. If the repository is already at `<game>/Mods/BrowserTV`, the property can be omitted. Harmony is resolved from `<game>/Mods/0_TFP_Harmony`; override `HarmonyDirectory` if it is elsewhere. Game assemblies stay local and are not copied into the mod.
+
 The project writes `BrowserTV.dll` to the mod root. Generated `bin`/`obj` folders should not be committed.
+
+### 3.4 verification
+
+The 3.4.0 b10 build compiles with no warnings or errors. An isolated headless game run verified mod initialization and Harmony patches, serialization round trips for all three custom network packages, TV entity persistence and client-to-server entity reads, both UI windows, URL input, volume binding, and loading the TV asset bundle. See `Tests/RuntimeSmoke` to repeat these checks.
+
+Live electrical wiring, video/audio playback through Docker, remote aiming, and multiplayer still need an in-world playtest. The headless checks do not establish full gameplay compatibility or compatibility with later game updates.
 
 Useful bridge commands:
 

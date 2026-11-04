@@ -55,14 +55,4 @@ public class BrowserTvStatePackage : NetPackage
 
         BrowserTvClientStateService.ApplyState(state);
     }
-
-    public override int GetLength()
-    {
-        return 128 + StringLen(state.SessionId) + StringLen(state.BridgeEndpoint) + StringLen(state.StreamUrl) + StringLen(state.ViewerToken) + StringLen(state.CurrentUrl) + StringLen(state.StatusText);
-    }
-
-    private static int StringLen(string value)
-    {
-        return (value?.Length ?? 0) * 2 + 4;
-    }
 }

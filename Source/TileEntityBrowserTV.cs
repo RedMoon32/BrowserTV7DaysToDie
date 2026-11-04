@@ -10,7 +10,6 @@ public class TileEntityBrowserTV : TileEntityPowered
     public TileEntityBrowserTV(Chunk chunk) : base(chunk)
     {
         PowerItemType = PowerItem.PowerItemTypes.Consumer;
-        InitializePowerData();
     }
 
     public void SetBlockEntityData(BlockEntityData blockEntityData)

@@ -11,7 +11,7 @@ public class BlockBrowserTV : BlockPowered
 
     public override void OnBlockAdded(WorldBase world, Chunk chunk, Vector3i blockPos, BlockValue blockValue, PlatformUserIdentifierAbs addedByPlayer)
     {
-        if (!blockValue.ischild && world.GetTileEntity(chunk.ClrIdx, blockPos) == null)
+        if (!blockValue.ischild && world.GetTileEntity(blockPos) == null)
         {
             CreateTileEntity(chunk, blockPos);
         }
@@ -19,15 +19,15 @@ public class BlockBrowserTV : BlockPowered
         base.OnBlockAdded(world, chunk, blockPos, blockValue, addedByPlayer);
     }
 
-    public override void OnBlockEntityTransformAfterActivated(WorldBase world, Vector3i blockPos, int cIdx, BlockValue blockValue, BlockEntityData ebcd)
+    public override void OnBlockEntityTransformAfterActivated(WorldBase world, Vector3i blockPos, BlockValue blockValue, BlockEntityData ebcd)
     {
-        base.OnBlockEntityTransformAfterActivated(world, blockPos, cIdx, blockValue, ebcd);
+        base.OnBlockEntityTransformAfterActivated(world, blockPos, blockValue, ebcd);
         if (ebcd == null || ebcd.transform == null)
         {
             return;
         }
 
-        TileEntityBrowserTV tileEntity = world.GetTileEntity(cIdx, blockPos) as TileEntityBrowserTV;
+        TileEntityBrowserTV tileEntity = world.GetTileEntity(blockPos) as TileEntityBrowserTV;
         if (tileEntity == null)
         {
             Chunk chunk = (Chunk)((World)world).GetChunkFromWorldPos(blockPos);
@@ -37,9 +37,9 @@ public class BlockBrowserTV : BlockPowered
         tileEntity?.SetBlockEntityData(ebcd);
     }
 
-    public override string GetActivationText(WorldBase world, BlockValue blockValue, int clrIdx, Vector3i blockPos, EntityAlive entityFocusing)
+    public override string GetActivationText(WorldBase world, BlockValue blockValue, Vector3i blockPos, EntityAlive entityFocusing)
     {
-        TileEntityBrowserTV tileEntity = world.GetTileEntity(clrIdx, blockPos) as TileEntityBrowserTV;
+        TileEntityBrowserTV tileEntity = world.GetTileEntity(blockPos) as TileEntityBrowserTV;
         if (tileEntity != null && ((TileEntityPowered)tileEntity).IsPowered)
         {
             return "Use Browser TV";
@@ -48,9 +48,9 @@ public class BlockBrowserTV : BlockPowered
         return Localization.Get("ttBrowserTvRequiresPower", false);
     }
 
-    public override bool OnBlockActivated(string commandName, WorldBase world, int cIdx, Vector3i blockPos, BlockValue blockValue, EntityPlayerLocal player)
+    public override bool OnBlockActivated(string commandName, WorldBase world, Vector3i blockPos, BlockValue blockValue, EntityPlayerLocal player)
     {
-        TileEntityBrowserTV tileEntity = world.GetTileEntity(cIdx, blockPos) as TileEntityBrowserTV;
+        TileEntityBrowserTV tileEntity = world.GetTileEntity(blockPos) as TileEntityBrowserTV;
         if (tileEntity == null)
         {
             Debug.LogWarning("[BrowserTV] Missing TileEntityBrowserTV at " + blockPos);
@@ -59,7 +59,7 @@ public class BlockBrowserTV : BlockPowered
 
         if (commandName == "take")
         {
-            TakeItemWithTimer(cIdx, blockPos, blockValue, player);
+            takeItemWithTimer(blockPos, blockValue, player, TakeDelay);
             return true;
         }
 
@@ -71,7 +71,7 @@ public class BlockBrowserTV : BlockPowered
 
         if (commandName == "edit" || string.IsNullOrEmpty(commandName))
         {
-            return OpenControlMenu(world, cIdx, blockPos, tileEntity, player);
+            return OpenControlMenu(world, blockPos, tileEntity, player);
         }
 
         BrowserTvState current = BrowserTvClientStateService.Current;
@@ -94,7 +94,7 @@ public class BlockBrowserTV : BlockPowered
         return true;
     }
 
-    private static bool OpenControlMenu(WorldBase world, int cIdx, Vector3i blockPos, TileEntityBrowserTV tileEntity, EntityPlayerLocal player)
+    private static bool OpenControlMenu(WorldBase world, Vector3i blockPos, TileEntityBrowserTV tileEntity, EntityPlayerLocal player)
     {
         try
         {
@@ -137,7 +137,7 @@ public class BlockBrowserTV : BlockPowered
                 return true;
             }
 
-            player.PlayerUI.windowManager.Open("windowBrowserTvControl", true, false, true);
+            player.PlayerUI.windowManager.Open("windowBrowserTvControl", true, false);
             return true;
         }
         catch (Exception ex)
@@ -160,19 +160,19 @@ public class BlockBrowserTV : BlockPowered
         }
     }
 
-    public override bool OnBlockActivated(WorldBase world, int cIdx, Vector3i blockPos, BlockValue blockValue, EntityPlayerLocal player)
+    public override bool OnBlockActivated(WorldBase world, Vector3i blockPos, BlockValue blockValue, EntityPlayerLocal player)
     {
-        return OnBlockActivated(string.Empty, world, cIdx, blockPos, blockValue, player);
+        return OnBlockActivated(string.Empty, world, blockPos, blockValue, player);
     }
 
-    public override BlockActivationCommand[] GetBlockActivationCommands(WorldBase world, BlockValue blockValue, int clrIdx, Vector3i blockPos, EntityAlive entityFocusing)
+    public override BlockActivationCommand[] GetBlockActivationCommands(WorldBase world, BlockValue blockValue, Vector3i blockPos, EntityAlive entityFocusing)
     {
         List<BlockActivationCommand> commands = new List<BlockActivationCommand>
         {
             new BlockActivationCommand("take", "hand", true, false, null)
         };
 
-        TileEntityBrowserTV tileEntity = world.GetTileEntity(clrIdx, blockPos) as TileEntityBrowserTV;
+        TileEntityBrowserTV tileEntity = world.GetTileEntity(blockPos) as TileEntityBrowserTV;
         if (tileEntity != null && ((TileEntityPowered)tileEntity).IsPowered)
         {
             commands.Insert(0, new BlockActivationCommand("edit", "pen", true, false, null));
@@ -208,6 +208,9 @@ public class BlockBrowserTV : BlockPowered
             TileEntityBrowserTV tileEntity = new TileEntityBrowserTV(chunk);
             ((TileEntity)tileEntity).localChunkPos = World.toBlock(blockPos);
             chunk.AddTileEntity(tileEntity);
+            // Deserialized entities initialize in OnReadComplete. New entities
+            // need their actual position before registering with PowerManager.
+            tileEntity.InitializePowerData();
             Debug.Log("[BrowserTV] Created TileEntityBrowserTV at " + blockPos);
             return tileEntity;
         }

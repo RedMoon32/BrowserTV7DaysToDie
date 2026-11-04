@@ -55,9 +55,4 @@ public class BrowserTvCommandPackage : NetPackage
 
         BrowserTvServerStateService.HandleCommand(command, blockPos, text, value, entityId);
     }
-
-    public override int GetLength()
-    {
-        return 28 + (text?.Length ?? 0) * 2;
-    }
 }

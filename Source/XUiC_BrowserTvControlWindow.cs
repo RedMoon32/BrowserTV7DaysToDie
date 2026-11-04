@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Reflection;
 using UnityEngine;
 using UnityEngine.Scripting;
 
@@ -12,7 +11,7 @@ public class XUiC_BrowserTvControlWindow : XUiController
     private XUiController panelUrl;
     private XUiController panelVolume;
     private XUiC_TextInput urlInput;
-    private XUiC_Slider volumeSlider;
+    private XUiC_ComboBoxFloat volumeSlider;
     private bool urlInputHandlersRegistered;
     private bool volumeSliderHandlerRegistered;
 
@@ -48,12 +47,11 @@ public class XUiC_BrowserTvControlWindow : XUiController
         panelUrl = GetChildById("panelUrl");
         panelVolume = GetChildById("panelVolume");
         urlInput = GetChildById("txtBrowserTvUrl") as XUiC_TextInput;
-        volumeSlider = GetChildById("browserTvVolumeSlider") as XUiC_Slider;
+        volumeSlider = GetChildById("browserTvVolumeSlider") as XUiC_ComboBoxFloat;
 
         if (urlInput != null)
         {
             urlInput.UIInput.validation = 0;
-            urlInput.characterLimit = 512;
         }
     }
 
@@ -65,9 +63,6 @@ public class XUiC_BrowserTvControlWindow : XUiController
             return;
         }
 
-        volumeSlider.Label = "Volume";
-        volumeSlider.Step = 0.01f;
-        volumeSlider.ValueFormatter = value => Mathf.RoundToInt(value * 100f) + "%";
         volumeSlider.Value = BrowserTvLocalAudioSettings.Volume;
     }
 
@@ -87,7 +82,7 @@ public class XUiC_BrowserTvControlWindow : XUiController
 
         if (!volumeSliderHandlerRegistered && volumeSlider != null)
         {
-            volumeSlider.OnValueChanged += VolumeSlider_OnValueChanged;
+            volumeSlider.OnValueChangedGeneric += VolumeSlider_OnValueChanged;
             volumeSliderHandlerRegistered = true;
         }
     }
@@ -169,15 +164,15 @@ public class XUiC_BrowserTvControlWindow : XUiController
         CloseWindow();
     }
 
-    private void VolumeSlider_OnValueChanged(XUiC_Slider slider)
+    private void VolumeSlider_OnValueChanged(XUiController sender)
     {
-        BrowserTvLocalAudioSettings.SetVolume(slider.Value);
+        BrowserTvLocalAudioSettings.SetVolume((float)volumeSlider.Value);
         BrowserTvWebRtcViewerHost.Ensure().RefreshLocalVolume();
     }
 
     private void CloseWindow()
     {
-        xui?.playerUI?.windowManager?.Close(WindowGroup.ID);
+        xui?.playerUI?.windowManager?.Close(WindowGroup);
     }
 
     private static void SetSelected(XUiC_TextInput input, bool selected)
@@ -187,61 +182,13 @@ public class XUiC_BrowserTvControlWindow : XUiController
 
     private static void SetVisible(XUiController controller, bool visible)
     {
-        if (controller == null)
+        if (controller?.ViewComponent == null)
         {
             return;
         }
 
-        if (!TrySetBoolProperty(controller, "Visible", visible) &&
-            !TrySetBoolProperty(controller, "IsVisible", visible))
-        {
-            object viewComponent = GetPropertyValue(controller, "ViewComponent");
-            TrySetBoolProperty(viewComponent, "Visible", visible);
-            TrySetBoolProperty(viewComponent, "IsVisible", visible);
-        }
-
+        controller.ViewComponent.IsVisible = visible;
         controller.IsDirty = true;
-    }
-
-    private static object GetPropertyValue(object target, string propertyName)
-    {
-        if (target == null)
-        {
-            return null;
-        }
-
-        try
-        {
-            return target.GetType().GetProperty(propertyName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)?.GetValue(target, null);
-        }
-        catch
-        {
-            return null;
-        }
-    }
-
-    private static bool TrySetBoolProperty(object target, string propertyName, bool value)
-    {
-        if (target == null)
-        {
-            return false;
-        }
-
-        try
-        {
-            PropertyInfo property = target.GetType().GetProperty(propertyName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-            if (property == null || !property.CanWrite || property.PropertyType != typeof(bool))
-            {
-                return false;
-            }
-
-            property.SetValue(target, value, null);
-            return true;
-        }
-        catch
-        {
-            return false;
-        }
     }
 
     private static string NormalizeUrl(string value)

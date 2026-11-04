@@ -48,9 +48,4 @@ public class BrowserTvClickPackage : NetPackage
 
         BrowserTvServerStateService.HandleClick(world, blockPos, u, v, entityId);
     }
-
-    public override int GetLength()
-    {
-        return 28;
-    }
 }

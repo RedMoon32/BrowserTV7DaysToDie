@@ -1,6 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <AssemblyName>BrowserTV</AssemblyName>
+    <GameDirectory Condition="'$(GameDirectory)' == ''">$(MSBuildThisFileDirectory)..\..\..</GameDirectory>
+    <GameManagedDirectory>$(GameDirectory)\7DaysToDie_Data\Managed</GameManagedDirectory>
+    <HarmonyDirectory Condition="'$(HarmonyDirectory)' == ''">$(GameDirectory)\Mods\0_TFP_Harmony</HarmonyDirectory>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <TargetFramework>net48</TargetFramework>
     <LangVersion>10.0</LangVersion>
@@ -18,48 +21,52 @@
   </ItemGroup>
   <ItemGroup>
     <Reference Include="Assembly-CSharp">
-      <HintPath>..\..\..\7DaysToDie_Data\Managed\Assembly-CSharp.dll</HintPath>
+      <HintPath>$(GameManagedDirectory)\Assembly-CSharp.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="NGUI">
-      <HintPath>..\..\..\7DaysToDie_Data\Managed\NGUI.dll</HintPath>
+      <HintPath>$(GameManagedDirectory)\NGUI.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="UnityEngine.CoreModule">
-      <HintPath>..\..\..\7DaysToDie_Data\Managed\UnityEngine.CoreModule.dll</HintPath>
+      <HintPath>$(GameManagedDirectory)\UnityEngine.CoreModule.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="UnityEngine.AudioModule">
-      <HintPath>..\..\..\7DaysToDie_Data\Managed\UnityEngine.AudioModule.dll</HintPath>
+      <HintPath>$(GameManagedDirectory)\UnityEngine.AudioModule.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="UnityEngine.UnityWebRequestModule">
-      <HintPath>..\..\..\7DaysToDie_Data\Managed\UnityEngine.UnityWebRequestModule.dll</HintPath>
+      <HintPath>$(GameManagedDirectory)\UnityEngine.UnityWebRequestModule.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="UnityEngine.UnityWebRequestTextureModule">
-      <HintPath>..\..\..\7DaysToDie_Data\Managed\UnityEngine.UnityWebRequestTextureModule.dll</HintPath>
+      <HintPath>$(GameManagedDirectory)\UnityEngine.UnityWebRequestTextureModule.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="UnityEngine.JSONSerializeModule">
-      <HintPath>..\..\..\7DaysToDie_Data\Managed\UnityEngine.JSONSerializeModule.dll</HintPath>
+      <HintPath>$(GameManagedDirectory)\UnityEngine.JSONSerializeModule.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="UnityEngine.IMGUIModule">
-      <HintPath>..\..\..\7DaysToDie_Data\Managed\UnityEngine.IMGUIModule.dll</HintPath>
+      <HintPath>$(GameManagedDirectory)\UnityEngine.IMGUIModule.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="UnityEngine.PhysicsModule">
-      <HintPath>..\..\..\7DaysToDie_Data\Managed\UnityEngine.PhysicsModule.dll</HintPath>
+      <HintPath>$(GameManagedDirectory)\UnityEngine.PhysicsModule.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="UnityEngine.InputLegacyModule">
-      <HintPath>..\..\..\7DaysToDie_Data\Managed\UnityEngine.InputLegacyModule.dll</HintPath>
+      <HintPath>$(GameManagedDirectory)\UnityEngine.InputLegacyModule.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="0Harmony">
-      <HintPath>..\..\0_TFP_Harmony\0Harmony.dll</HintPath>
+      <HintPath>$(HarmonyDirectory)\0Harmony.dll</HintPath>
       <Private>false</Private>
     </Reference>
   </ItemGroup>
+  <Target Name="CheckGameReferences" BeforeTargets="ResolveAssemblyReferences">
+    <Error Condition="!Exists('$(GameManagedDirectory)\Assembly-CSharp.dll')" Text="Set GameDirectory to a 7 Days to Die 3.4 installation containing 7DaysToDie_Data/Managed/Assembly-CSharp.dll." />
+    <Error Condition="!Exists('$(HarmonyDirectory)\0Harmony.dll')" Text="Set HarmonyDirectory to the game's 0_TFP_Harmony mod folder." />
+  </Target>
 </Project>
