@@ -57,7 +57,7 @@ The bridge is a small Node.js container. For each active TV it starts a headless
 
 1. Install Docker on the bridge host (a Linux server, or Windows with Docker Desktop) and place this folder there — any copy containing `docker-compose.yml` and `bridge/` works.
 
-2. Start the bridge from that folder:
+2. Copy `.env.example` to `.env`, set your bridge address and a strong secret (see Configuration below), then start the bridge from that folder:
 
    ```powershell
    docker compose up -d --build browser-tv-bridge
@@ -69,7 +69,7 @@ The bridge is a small Node.js container. For each active TV it starts a headless
    Invoke-RestMethod http://127.0.0.1:8787/health
    ```
 
-4. Point `Config/browser-tv.json` at the bridge: `bridgeInternalUrl` is used by the game server, `bridgePublicUrl` must be reachable by every client (hostname or LAN IP of the bridge host). `serverSecret` in the config must equal `BROWSER_TV_SERVER_SECRET` in `docker-compose.yml`.
+4. Copy `Config/browser-tv.example.json` to `Config/browser-tv.json` on the game installation and point it at the bridge: `bridgeInternalUrl` is used by the game server, `bridgePublicUrl` must be reachable by every client (hostname or LAN IP of the bridge host). `serverSecret` in the config must equal `BROWSER_TV_SERVER_SECRET` in the bridge host's `.env`.
 
 5. Start the game/server and place a BrowserTV block.
 
@@ -77,7 +77,23 @@ The bridge serves plain HTTP. If clients connect from outside the LAN, put it be
 
 ## Configuration
 
-Game-side settings are in `Config/browser-tv.json`:
+Game-side settings live in `Config/browser-tv.json`. This file contains your `serverSecret`, so it is **per-install and intentionally not committed** to the repository.
+
+On a fresh install, copy the committed template and fill it in:
+
+```powershell
+Copy-Item Config/browser-tv.example.json Config/browser-tv.json
+```
+
+On the bridge host, copy `.env.example` to `.env` and edit it before starting Docker:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+For an existing installation, back up your configuration before updating and keep its URLs and secret. Do not overwrite it with the template. Update the mod on the server and every client together, and rebuild the bridge: the remote uses a new network packet format.
+
+Example (`Config/browser-tv.example.json`):
 
 ```json
 {
@@ -89,13 +105,15 @@ Game-side settings are in `Config/browser-tv.json`:
   "spatialAudioEnabled": true,
   "audioMinDistance": 2.0,
   "audioMaxDistance": 20.0,
-  "audioRolloffPower": 1.5
+  "audioRolloffPower": 1.5,
+  "browserWidth": 1280,
+  "browserHeight": 720
 }
 ```
 
 `bridgeInternalUrl` is used by the game server to control the bridge. `bridgePublicUrl` is sent to clients and must be reachable by every player who should see the TV stream. On a dedicated server, this usually needs to be the server LAN IP or public hostname, not `127.0.0.1`.
 
-The Docker bridge uses matching environment variables in `docker-compose.yml`, especially:
+The Docker bridge reads settings from `.env` through `docker-compose.yml`, especially:
 
 - `BROWSER_TV_SERVER_SECRET`
 - `BROWSER_TV_PUBLIC_URL`
@@ -103,10 +121,15 @@ The Docker bridge uses matching environment variables in `docker-compose.yml`, e
 - `BROWSER_TV_WIDTH`
 - `BROWSER_TV_HEIGHT`
 - `BROWSER_TV_FPS`
+- `BROWSER_TV_CONSENT_COOKIES` (optional JSON array of `{ "domain": "...", "value": "..." }` entries overriding the default Google/YouTube consent cookies)
 - `BROWSER_TV_MEDIA_ROOT` (default `/tmp/browser-tv-media`, scratch/session files for the bridge)
 - `BROWSER_TV_DISPLAY_BASE` (default `90`, first Xvfb display number used for sessions)
 
-For a real server, change the default secret in both `Config/browser-tv.json` and `docker-compose.yml`.
+`Config/browser-tv.json` and `.env` are ignored by Git. Only the example files belong in the repository; do not force-add local configuration or put real secrets in the examples.
+
+For a real server, replace the placeholder with the same strong secret in `Config/browser-tv.json` and `.env`. Keep `browserWidth`/`browserHeight` equal to `BROWSER_TV_WIDTH`/`BROWSER_TV_HEIGHT` so remote clicks land at the correct position.
+
+For sessions starting on Google or YouTube, the bridge seeds consent cookies in the Chromium profile before opening the page. This keeps the consent-window handling alongside remote clicks; cookie values can be overridden using `BROWSER_TV_CONSENT_COOKIES` if the sites change them.
 
 ## Usage
 
@@ -115,6 +138,12 @@ Power the TV block and interact with it to open the Browser TV URL input. The UR
 Volume is stored locally for each client and is not synchronized through the server. The selected percentage is the volume heard while standing near the TV; distance attenuation is still applied on top of it according to the TV block type. The default local volume is 100%.
 
 The bridge opens the selected URL in Chromium and streams the captured browser window back to clients through LibVLC.
+
+## Browser TV Remote
+
+Craft `Browser TV Remote` at a workbench. With the remote held, aim at the visible browser screen and use the primary action to send a left-click to that exact point in the browser page. The game client resolves the screen mesh UV, while the game server validates the active TV, held remote, range, and click rate before it forwards the click to the bridge.
+
+The bridge uses Chromium's local DevTools endpoint only inside its container; do not publish port `9222`.
 
 Only one BrowserTV session is currently intended to be active at a time. Multiple players can watch the same active TV without spawning multiple ffmpeg encoders.
 

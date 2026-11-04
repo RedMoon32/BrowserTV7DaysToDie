@@ -1,4 +1,6 @@
 Key,File,Type,UsedInMainMenu,NoTranslate,english,Context / Alternate Text,german,latam,french,italian,japanese,koreana,polish,brazilian,russian,turkish,schinese,tchinese,spanish
+BrowserTvRemote,items,Item,,,Browser TV Remote,,,,,,,,,,,,,,
+BrowserTvRemoteDesc,items,Item,,,Aim at an active Browser TV screen and use primary action to left-click the browser.,,,,,,,,,,,,,,
 BrowserTV,blocks,Block,,,Browser TV,,,,,,,,,,,"Browser TV",,,,
 BrowserTVDesc,blocks,Block,,,"A powered TV block for displaying a remote browser session.",,,,,,,,,,,"TV-блок для отображения удаленной браузерной сессии.",,,,
 BrowserTVWall,blocks,Block,,,Wall Browser TV,,,,,,,,,,,"Настенный Browser TV",,,,

@@ -48,6 +48,16 @@ public sealed class BrowserTvBridgeClient
         Post("/api/server/session/navigate", "{\"sessionId\":\"" + JsonEscape(sessionId) + "\",\"url\":\"" + JsonEscape(url) + "\"}");
     }
 
+    public void Click(string sessionId, int x, int y)
+    {
+        if (string.IsNullOrEmpty(sessionId))
+        {
+            return;
+        }
+
+        Post("/api/server/session/click", "{\"sessionId\":\"" + JsonEscape(sessionId) + "\",\"x\":" + x + ",\"y\":" + y + "}");
+    }
+
     private string Post(string path, string body)
     {
         string url = config.BridgeInternalUrl + path;

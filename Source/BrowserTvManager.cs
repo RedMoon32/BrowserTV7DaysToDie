@@ -99,6 +99,11 @@ public class BrowserTvManager : MonoBehaviour
         return controller;
     }
 
+    public System.Collections.Generic.List<BrowserTvScreenController> GetAllControllers()
+    {
+        return new System.Collections.Generic.List<BrowserTvScreenController>(controllers.Values);
+    }
+
     public void SetScreenState(Vector3i worldPos, BrowserTvScreenState state)
     {
         BrowserTvScreenController controller = GetController(worldPos);

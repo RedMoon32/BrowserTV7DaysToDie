@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configs>
+  <append xpath="/items">
+    <item name="BrowserTvRemote">
+      <property name="Tags" value="tool,noMods"/>
+      <property name="DisplayType" value="simpleTool"/>
+      <property name="HoldType" value="13"/>
+      <property name="Meshfile" value="@:Other/Items/Tools/flashlight02Prefab.prefab"/>
+      <property name="CustomIcon" value="meleeToolFlashlight02"/>
+      <property name="Material" value="MelectricParts"/>
+      <property name="Weight" value="1"/>
+      <property name="EconomicValue" value="250"/>
+      <property name="Stacknumber" value="1"/>
+      <property name="Group" value="Tools/Traps"/>
+      <property name="DescriptionKey" value="BrowserTvRemoteDesc"/>
+      <property name="SoundUnholster" value="weapon_unholster"/>
+      <property name="SoundHolster" value="weapon_holster"/>
+      <property name="SoundPickup" value="flashlight_grab"/>
+      <property class="Action0">
+        <property name="Class" value="ItemActionBrowserTvRemote, BrowserTV"/>
+      </property>
+      <effect_group name="BrowserTvRemote" tiered="false">
+        <passive_effect name="MaxRange" operation="base_set" value="30"/>
+        <passive_effect name="AttacksPerMinute" operation="base_set" value="300"/>
+        <passive_effect name="ModSlots" operation="base_set" value="0"/>
+      </effect_group>
+    </item>
+  </append>
+</configs>

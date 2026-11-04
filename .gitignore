@@ -11,8 +11,14 @@ tmp/
 tmp-session.json
 *.ts
 
-# Bridge scratch and diagnostic backups (kept local, not committed)
+# Bridge scratch and diagnostic backups
 bridge/server.forsen.fun*.js
+
+# Per-install secret config (holds serverSecret); copy from the committed example
+Config/browser-tv.json
+.env
+.env.*
+!.env.example
 
 # Obsolete reference mod copied during development
 YoutubeTVMod/

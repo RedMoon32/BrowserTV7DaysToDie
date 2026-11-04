@@ -5,6 +5,8 @@ using UnityEngine.Rendering;
 public class BrowserTvScreenController : MonoBehaviour
 {
     private const string MainTex = "_MainTex";
+    private const float UvEpsilon = 0.02f;
+    private const float ScreenBoundsInflation = 0.5f;
     private static readonly Color ScreenGlow = new Color(0.22f, 0.22f, 0.22f, 1f);
     private static readonly Color VideoGlow = new Color(0.32f, 0.32f, 0.32f, 1f);
     private static readonly Vector2 NormalTextureScale = Vector2.one;
@@ -21,6 +23,16 @@ public class BrowserTvScreenController : MonoBehaviour
     private AudioSource audioSource;
 
     public TileEntityBrowserTV ParentTileEntity { get; set; }
+    public Transform OwnerTransform { get; set; }
+
+    public enum ScreenRaycastFailure
+    {
+        None,
+        RendererMissing,
+        MeshMissing,
+        MeshUvMissing,
+        MissedSurface
+    }
 
     public void Initialize(Renderer renderer)
     {
@@ -79,6 +91,223 @@ public class BrowserTvScreenController : MonoBehaviour
         {
             ApplyScreenMaterial(texture, VideoGlow, true, true);
         }
+    }
+
+    public Bounds ScreenBounds
+    {
+        get
+        {
+            Bounds bounds = screenRenderer != null ? screenRenderer.bounds : new Bounds();
+            bounds.Expand(ScreenBoundsInflation);
+            return bounds;
+        }
+    }
+
+    public bool TryGetBrowserCoordinates(Ray worldRay, float maxDistance, out Vector2 coordinates, out float distance, out ScreenRaycastFailure failure)
+    {
+        coordinates = Vector2.zero;
+        distance = 0f;
+        failure = ScreenRaycastFailure.None;
+        if (screenRenderer == null)
+        {
+            failure = ScreenRaycastFailure.RendererMissing;
+            return false;
+        }
+
+        if (TryGetMeshColliderCoordinates(worldRay, maxDistance, out Vector2 colliderUv, out distance) &&
+            TryComputeBrowserCoordinates(colliderUv, out coordinates))
+        {
+            return true;
+        }
+
+        MeshFilter meshFilter = screenRenderer.GetComponent<MeshFilter>();
+        Mesh mesh = meshFilter != null ? meshFilter.sharedMesh : null;
+        if (mesh == null || mesh.vertices == null || mesh.triangles == null || mesh.vertices.Length == 0 || mesh.triangles.Length == 0)
+        {
+            failure = ScreenRaycastFailure.MeshMissing;
+            return false;
+        }
+
+        if (mesh.uv == null || mesh.uv.Length == 0)
+        {
+            failure = ScreenRaycastFailure.MeshUvMissing;
+            return false;
+        }
+
+        Vector3[] vertices = mesh.vertices;
+        Vector2[] uv = mesh.uv;
+        int[] triangles = mesh.triangles;
+        float nearestT = float.MaxValue;
+        Vector2 nearestUv = Vector2.zero;
+
+        for (int triangle = 0; triangle + 2 < triangles.Length; triangle += 3)
+        {
+            int first = triangles[triangle];
+            int second = triangles[triangle + 1];
+            int third = triangles[triangle + 2];
+            if (first >= vertices.Length || second >= vertices.Length || third >= vertices.Length ||
+                first >= uv.Length || second >= uv.Length || third >= uv.Length)
+            {
+                continue;
+            }
+
+            Vector3 worldFirst = transform.TransformPoint(vertices[first]);
+            Vector3 worldSecond = transform.TransformPoint(vertices[second]);
+            Vector3 worldThird = transform.TransformPoint(vertices[third]);
+
+            if (!TryIntersectTriangle(worldRay.origin, worldRay.direction, worldFirst, worldSecond, worldThird, out float t, out float barycentricB, out float barycentricC) ||
+                t >= nearestT ||
+                t > maxDistance)
+            {
+                continue;
+            }
+
+            float barycentricA = 1f - barycentricB - barycentricC;
+            nearestT = t;
+            nearestUv = uv[first] * barycentricA + uv[second] * barycentricB + uv[third] * barycentricC;
+        }
+
+        if (nearestT == float.MaxValue)
+        {
+            LogRaycastMiss(worldRay);
+            failure = ScreenRaycastFailure.MissedSurface;
+            return false;
+        }
+
+        if (!TryComputeBrowserCoordinates(nearestUv, out coordinates))
+        {
+            LogRaycastMiss(worldRay);
+            failure = ScreenRaycastFailure.MissedSurface;
+            return false;
+        }
+
+        distance = Vector3.Distance(worldRay.origin, worldRay.origin + worldRay.direction * nearestT);
+        return true;
+    }
+
+    private bool TryGetMeshColliderCoordinates(Ray worldRay, float maxDistance, out Vector2 uv, out float distance)
+    {
+        uv = Vector2.zero;
+        distance = 0f;
+        RaycastHit[] hits = Physics.RaycastAll(worldRay, maxDistance, Physics.AllLayers, QueryTriggerInteraction.Ignore);
+        System.Array.Sort(hits, (first, second) => first.distance.CompareTo(second.distance));
+        foreach (RaycastHit hit in hits)
+        {
+            MeshCollider meshCollider = hit.collider as MeshCollider;
+            if (meshCollider == null ||
+                meshCollider.sharedMesh == null ||
+                meshCollider.sharedMesh.uv == null ||
+                meshCollider.sharedMesh.uv.Length == 0 ||
+                !IsScreenCollider(hit.collider))
+            {
+                continue;
+            }
+
+            uv = hit.textureCoord;
+            distance = hit.distance;
+            return true;
+        }
+
+        return false;
+    }
+
+    private bool TryComputeBrowserCoordinates(Vector2 rawUv, out Vector2 coordinates)
+    {
+        coordinates = Vector2.zero;
+        if (rawUv.x < -UvEpsilon || rawUv.x > 1f + UvEpsilon || rawUv.y < -UvEpsilon || rawUv.y > 1f + UvEpsilon)
+        {
+            return false;
+        }
+
+        Vector2 scale = Vector2.one;
+        Vector2 offset = Vector2.zero;
+        if (screenMaterial != null && screenMaterial.HasProperty(MainTex))
+        {
+            scale = screenMaterial.GetTextureScale(MainTex);
+            offset = screenMaterial.GetTextureOffset(MainTex);
+        }
+
+        coordinates = new Vector2(rawUv.x * scale.x + offset.x, rawUv.y * scale.y + offset.y);
+        return true;
+    }
+
+    private float nextMissLogTime;
+
+    private void LogRaycastMiss(Ray worldRay)
+    {
+        if (screenRenderer == null || Time.unscaledTime < nextMissLogTime)
+        {
+            return;
+        }
+
+        nextMissLogTime = Time.unscaledTime + 2f;
+        MeshFilter meshFilter = screenRenderer != null ? screenRenderer.GetComponent<MeshFilter>() : null;
+        string meshName = meshFilter != null && meshFilter.sharedMesh != null ? meshFilter.sharedMesh.name : "n/a";
+        Bounds bounds = screenRenderer != null ? screenRenderer.bounds : new Bounds();
+        string owner = OwnerTransform != null ? OwnerTransform.name + "@" + OwnerTransform.position.ToString("F1") : "null";
+        string parent = transform.parent != null ? transform.parent.name + "@" + transform.parent.position.ToString("F1") : "null";
+        string block = ParentTileEntity != null ? ParentTileEntity.ToWorldPos().ToString() : "n/a";
+        Debug.LogWarning("[BrowserTV] Click raycast missed. rayOrigin=" + worldRay.origin + " rayDir=" + worldRay.direction +
+            " screen=" + gameObject.name + " mesh=" + meshName + " origin=" + Origin.position +
+            " transformPos=" + transform.position + " rot=" + transform.rotation.eulerAngles + " lossyScale=" + transform.lossyScale +
+            " boundsCenter=" + bounds.center + " boundsSize=" + bounds.size +
+            " block=" + block + " owner=" + owner + " parent=" + parent);
+    }
+
+    public bool OwnsCollider(Collider collider)
+    {
+        if (collider == null || collider.transform == null)
+        {
+            return false;
+        }
+
+        Transform colliderTransform = collider.transform;
+        Transform ownerTransform = OwnerTransform != null ? OwnerTransform : transform;
+        return colliderTransform == transform ||
+            colliderTransform.IsChildOf(transform) ||
+            transform.IsChildOf(colliderTransform) ||
+            colliderTransform == ownerTransform ||
+            colliderTransform.IsChildOf(ownerTransform) ||
+            ownerTransform.IsChildOf(colliderTransform);
+    }
+
+    public bool IsScreenCollider(Collider collider)
+    {
+        return OwnsCollider(collider);
+    }
+
+    private static bool TryIntersectTriangle(Vector3 origin, Vector3 direction, Vector3 first, Vector3 second, Vector3 third, out float t, out float barycentricB, out float barycentricC)
+    {
+        const float Epsilon = 0.000001f;
+        Vector3 firstEdge = second - first;
+        Vector3 secondEdge = third - first;
+        Vector3 perpendicular = Vector3.Cross(direction, secondEdge);
+        float determinant = Vector3.Dot(firstEdge, perpendicular);
+        t = 0f;
+        barycentricB = 0f;
+        barycentricC = 0f;
+        if (Mathf.Abs(determinant) < Epsilon)
+        {
+            return false;
+        }
+
+        float inverseDeterminant = 1f / determinant;
+        Vector3 offset = origin - first;
+        barycentricB = Vector3.Dot(offset, perpendicular) * inverseDeterminant;
+        if (barycentricB < 0f || barycentricB > 1f)
+        {
+            return false;
+        }
+
+        Vector3 cross = Vector3.Cross(offset, firstEdge);
+        barycentricC = Vector3.Dot(direction, cross) * inverseDeterminant;
+        if (barycentricC < 0f || barycentricB + barycentricC > 1f)
+        {
+            return false;
+        }
+
+        t = Vector3.Dot(secondEdge, cross) * inverseDeterminant;
+        return t > Epsilon;
     }
 
     private void ApplyScreenMaterial(Texture texture, Color glowColor, bool flipVertical, bool isVideo)

@@ -16,6 +16,8 @@ public sealed class BrowserTvConfig
     public float AudioMinDistance = 2f;
     public float AudioMaxDistance = 20f;
     public float AudioRolloffPower = 1.5f;
+    public int BrowserWidth = 1280;
+    public int BrowserHeight = 720;
     public readonly Dictionary<string, float> AudioMaxDistanceByBlock = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase)
     {
         { "BrowserTV", 20f },
@@ -44,11 +46,15 @@ public sealed class BrowserTvConfig
             config.AudioMinDistance = GetFloat(json, "audioMinDistance", config.AudioMinDistance);
             config.AudioMaxDistance = GetFloat(json, "audioMaxDistance", config.AudioMaxDistance);
             config.AudioRolloffPower = GetFloat(json, "audioRolloffPower", config.AudioRolloffPower);
+            config.BrowserWidth = GetInt(json, "browserWidth", config.BrowserWidth);
+            config.BrowserHeight = GetInt(json, "browserHeight", config.BrowserHeight);
         }
 
         config.AudioMinDistance = Mathf.Max(0f, config.AudioMinDistance);
         config.AudioMaxDistance = Mathf.Max(config.AudioMinDistance + 0.1f, config.AudioMaxDistance);
         config.AudioRolloffPower = Mathf.Max(0.1f, config.AudioRolloffPower);
+        config.BrowserWidth = Mathf.Clamp(config.BrowserWidth, 256, 7680);
+        config.BrowserHeight = Mathf.Clamp(config.BrowserHeight, 144, 4320);
         ClampBlockAudioDistances(config);
         Current = config;
         Debug.Log("[BrowserTV] Config loaded. BridgePublicUrl=" + config.BridgePublicUrl + ", BridgeInternalUrl=" + config.BridgeInternalUrl + ", SpatialAudio=" + config.SpatialAudioEnabled + ", AudioMaxDistance=" + config.AudioMaxDistance);
@@ -100,5 +106,16 @@ public sealed class BrowserTvConfig
         return float.TryParse(match.Groups[1].Value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float value)
             ? value
             : fallback;
+    }
+
+    private static int GetInt(string json, string name, int fallback)
+    {
+        Match match = Regex.Match(json, "\"" + Regex.Escape(name) + "\"\\s*:\\s*(-?\\d+)", RegexOptions.IgnoreCase);
+        if (!match.Success || !int.TryParse(match.Groups[1].Value, out int value))
+        {
+            return fallback;
+        }
+
+        return value;
     }
 }

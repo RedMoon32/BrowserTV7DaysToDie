@@ -7,11 +7,12 @@ services:
     shm_size: "2gb"
     environment:
       PORT: "8787"
-      BROWSER_TV_SERVER_SECRET: "change-me-browser-tv-secret"
-      BROWSER_TV_PUBLIC_URL: "http://127.0.0.1:8787"
-      BROWSER_TV_DEFAULT_URL: "https://www.google.com"
-      BROWSER_TV_WIDTH: "1280"
-      BROWSER_TV_HEIGHT: "720"
-      BROWSER_TV_FPS: "30"
+      BROWSER_TV_SERVER_SECRET: "${BROWSER_TV_SERVER_SECRET:-change-me-browser-tv-secret}"
+      BROWSER_TV_PUBLIC_URL: "${BROWSER_TV_PUBLIC_URL:-http://127.0.0.1:8787}"
+      BROWSER_TV_DEFAULT_URL: "${BROWSER_TV_DEFAULT_URL:-https://www.google.com}"
+      BROWSER_TV_WIDTH: "${BROWSER_TV_WIDTH:-1280}"
+      BROWSER_TV_HEIGHT: "${BROWSER_TV_HEIGHT:-720}"
+      BROWSER_TV_FPS: "${BROWSER_TV_FPS:-30}"
+      BROWSER_TV_CONSENT_COOKIES: "${BROWSER_TV_CONSENT_COOKIES:-}"
     ports:
       - "8787:8787"
